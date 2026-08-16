@@ -36,7 +36,7 @@ Pré-requisitos: Node.js 20+, PostgreSQL (ou `docker-compose up -d`).
 cd apps/api
 cp .env.example .env
 npm install
-npx prisma migrate dev
+npx prisma db push
 npm run start:dev
 
 # Frontend
