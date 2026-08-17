@@ -23,4 +23,29 @@ export class BootstrapController {
     await this.prisma.user.update({ where: { email }, data: { role: 'ADMIN' } });
     return { message: `Usuário ${email} agora é administrador.` };
   }
+
+  // Popula os artistas iniciais da especificação — uso único, mesma chave do make-admin.
+  @Get('seed-artists')
+  async seedArtists(@Query('secret') secret: string) {
+    if (!process.env.ADMIN_BOOTSTRAP_SECRET || secret !== process.env.ADMIN_BOOTSTRAP_SECRET) {
+      throw new ForbiddenException('Chave inválida');
+    }
+
+    const names = [
+      'Aline Barros', 'Gabriela Rocha', 'Fernandinho', 'Isadora Pompeo',
+      'Anderson Freire', 'Bruna Karla', 'Thalles Roberto', 'Isaias Saad',
+      'Fernanda Brum', 'Cassiane', 'Julliany Souza', 'Gabriel Guedes',
+    ];
+
+    let created = 0;
+    for (const name of names) {
+      const existing = await this.prisma.artist.findFirst({ where: { name } });
+      if (!existing) {
+        await this.prisma.artist.create({ data: { name } });
+        created++;
+      }
+    }
+
+    return { message: `${created} artista(s) criado(s). Total verificado: ${names.length}.` };
+  }
 }
