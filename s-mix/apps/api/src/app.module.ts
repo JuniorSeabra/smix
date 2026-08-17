@@ -6,6 +6,7 @@ import { UsersModule } from './modules/users/users.module';
 import { ArtistsModule } from './modules/artists/artists.module';
 import { SongsModule } from './modules/songs/songs.module';
 import { FilesModule } from './modules/files/files.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { FilesModule } from './modules/files/files.module';
     ArtistsModule,
     SongsModule,
     FilesModule,
-    // SubscriptionsModule, PaymentsModule, ChatModule, AdminModule
+    AdminModule,
+    // SubscriptionsModule, PaymentsModule, ChatModule
     // entram conforme a Fase 1 avança — ver docs/arquitetura.md
   ],
 })
