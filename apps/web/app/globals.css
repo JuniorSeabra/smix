@@ -3,6 +3,29 @@
 @tailwind utilities;
 
 body {
-  background-color: #0B0B10;
-  color: #F5F5F7;
+  background-color: #070B14;
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(109, 94, 245, 0.16) 0%, transparent 45%),
+    radial-gradient(circle at 85% 15%, rgba(56, 189, 248, 0.12) 0%, transparent 50%),
+    linear-gradient(180deg, #070B14 0%, #0D1526 100%);
+  background-attachment: fixed;
+  color: #F1F5FB;
+  position: relative;
+  min-height: 100vh;
 }
+
+/* Silhueta sutil de banda tocando, fixa no fundo — puramente decorativa,
+   ilustração original em CSS/SVG, sem depender de fotos de terceiros. */
+.band-silhouette-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.05;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center 85%;
+  background-size: min(900px, 140%);
+}
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
