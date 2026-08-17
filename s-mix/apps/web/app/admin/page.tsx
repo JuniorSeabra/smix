@@ -59,6 +59,7 @@ export default function AdminDashboardPage() {
         <h1 className="text-2xl font-bold">Painel Admin — S-MIX</h1>
         <nav className="flex gap-4 text-sm text-smix-muted">
           <a href="/admin" className="text-smix-text">Dashboard</a>
+          <a href="/admin/artistas" className="hover:text-smix-text transition">Artistas</a>
           <a href="/admin/usuarios" className="hover:text-smix-text transition">Usuários</a>
           <a href="/home" className="hover:text-smix-text transition">Voltar ao app</a>
         </nav>

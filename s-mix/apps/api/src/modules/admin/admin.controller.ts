@@ -25,7 +25,7 @@ export class AdminController {
   @Patch('users/:id')
   async updateUser(
     @Param('id') id: string,
-    @Body() body: { role?: 'USER' | 'ADMIN'; status?: 'ACTIVE' | 'INACTIVE'; name?: string },
+    @Body() body: { role?: 'USER' | 'ADMIN'; status?: 'ACTIVE' | 'INACTIVE'; name?: string; email?: string; newPassword?: string },
     @Req() req: any,
   ) {
     const result = await this.adminService.updateUser(id, body);

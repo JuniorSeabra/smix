@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { Header } from '../../components/Header';
 import { BottomNav } from '../../components/BottomNav';
+import { InstrumentIcon, INSTRUMENTS } from '../../components/InstrumentIcon';
+import { InstrumentBackdrop } from '../../components/InstrumentBackdrop';
 
 type Artist = { id: string; name: string; photoUrl: string | null };
 type SongResult = { id: string; title: string; artist: { name: string } };
@@ -95,28 +97,40 @@ export default function HomePage() {
       </div>
 
       {!query.trim() && (
-        <section className="mt-8">
+        <section className="relative mt-8 py-4">
+          <InstrumentBackdrop />
           <h2 className="px-5 text-sm text-smix-muted mb-3">Artistas</h2>
-          <div className="flex gap-4 overflow-x-auto px-5 pb-2 snap-x snap-mandatory scrollbar-hide">
-            {artists.map((artist, i) => (
-              <a
-                key={artist.id}
-                href={`/artistas/${artist.id}`}
-                className="flex-shrink-0 w-20 flex flex-col items-center gap-2 snap-start group"
-              >
-                <div
-                  className={`w-20 h-20 rounded-full overflow-hidden flex items-center justify-center text-lg font-semibold bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} group-hover:scale-105 transition-transform shadow-lg`}
+
+          {/* Mobile/tablet: ~5 visíveis por vez. Desktop: ~8 visíveis. Arraste para o lado para ver mais. */}
+          <div className="flex gap-3 md:gap-4 overflow-x-auto px-5 pb-2 snap-x snap-mandatory scrollbar-hide scroll-smooth">
+            {artists.map((artist, i) => {
+              const instrument = INSTRUMENTS[i % INSTRUMENTS.length];
+              return (
+                <a
+                  key={artist.id}
+                  href={`/artistas/${artist.id}`}
+                  className="flex-shrink-0 w-[18%] md:w-[11%] min-w-[64px] flex flex-col items-center gap-2 snap-start group"
                 >
-                  {artist.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={artist.photoUrl} alt={artist.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-white/90">{initials(artist.name)}</span>
-                  )}
-                </div>
-                <span className="text-xs text-center text-smix-muted line-clamp-2">{artist.name}</span>
-              </a>
-            ))}
+                  <div className="relative">
+                    <div
+                      className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden flex items-center justify-center text-base md:text-lg font-semibold bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} group-hover:scale-105 transition-transform shadow-lg`}
+                    >
+                      {artist.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={artist.photoUrl} alt={artist.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white/90">{initials(artist.name)}</span>
+                      )}
+                    </div>
+                    {/* Selo de instrumento — dá vida e diferencia cada card */}
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-smix-bg border border-smix-border flex items-center justify-center p-1">
+                      <InstrumentIcon type={instrument} className="w-full h-full" />
+                    </div>
+                  </div>
+                  <span className="text-xs text-center text-smix-muted line-clamp-2">{artist.name}</span>
+                </a>
+              );
+            })}
           </div>
         </section>
       )}

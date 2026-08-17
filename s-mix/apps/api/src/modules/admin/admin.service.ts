@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -49,8 +50,16 @@ export class AdminService {
     });
   }
 
-  updateUser(id: string, data: { role?: 'USER' | 'ADMIN'; status?: 'ACTIVE' | 'INACTIVE'; name?: string }) {
-    return this.prisma.user.update({ where: { id }, data });
+  updateUser(
+    id: string,
+    data: { role?: 'USER' | 'ADMIN'; status?: 'ACTIVE' | 'INACTIVE'; name?: string; email?: string; newPassword?: string },
+  ) {
+    const { newPassword, ...rest } = data;
+    const updateData: any = { ...rest };
+    if (newPassword) {
+      updateData.passwordHash = bcrypt.hashSync(newPassword, 12);
+    }
+    return this.prisma.user.update({ where: { id }, data: updateData });
   }
 
   listSubscriptions() {
