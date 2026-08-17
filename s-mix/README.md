@@ -52,12 +52,8 @@ Este é o esqueleto inicial (Fase 1 — MVP em construção):
 - [x] Estrutura de pastas e schema do banco (Prisma)
 - [x] Módulo de autenticação (cadastro/login/JWT + RBAC)
 - [x] Modelos de Artistas e Músicas (CRUD básico)
-- [x] Frontend: telas de login, cadastro, home, artista, música, perfil, admin, afinador, chat
-- [x] Módulo de admin (dashboard, CRUD de artistas/usuários) e bootstrap do primeiro admin
-- [x] Módulo de assinaturas (`subscriptions`) com `PaymentGatewayAdapter` — hoje usando
-      `ManualGatewayAdapter` (ativa na hora, sem cobrança real) até um gateway ser escolhido
-- [x] Módulo de pagamentos (`payments`) — histórico + endpoint de webhook (`POST /payments/webhook`)
-- [ ] Adapter real de gateway (Asaas/Pagar.me/Mercado Pago/Stripe) — pendente escolha do gateway
+- [ ] Integração real com gateway de pagamento (pendente escolha do gateway)
 - [ ] Integração real com Google Drive (pendente credenciais)
+- [ ] Frontend: telas de login, cadastro, home, página do artista
 
 Veja `docs/arquitetura.md` para a análise técnica completa.
