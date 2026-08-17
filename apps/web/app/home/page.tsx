@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { Header } from '../../components/Header';
 import { BottomNav } from '../../components/BottomNav';
@@ -37,6 +37,47 @@ export default function HomePage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SongResult[]>([]);
   const [searching, setSearching] = useState(false);
+
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef<{ dragging: boolean; startX: number; startScrollLeft: number; moved: boolean }>({
+    dragging: false,
+    startX: 0,
+    startScrollLeft: 0,
+    moved: false,
+  });
+
+  // Arrastar com o mouse no desktop (não tem trackpad/scroll horizontal óbvio).
+  function handleMouseDown(e: React.MouseEvent) {
+    const el = scrollerRef.current;
+    if (!el) return;
+    dragState.current = { dragging: true, startX: e.pageX, startScrollLeft: el.scrollLeft, moved: false };
+  }
+  function handleMouseMove(e: React.MouseEvent) {
+    const el = scrollerRef.current;
+    if (!el || !dragState.current.dragging) return;
+    const delta = e.pageX - dragState.current.startX;
+    if (Math.abs(delta) > 3) dragState.current.moved = true;
+    el.scrollLeft = dragState.current.startScrollLeft - delta;
+  }
+  function endDrag() {
+    dragState.current.dragging = false;
+  }
+  // Evita que o "arraste" vire clique acidental no artista.
+  function handleClickCapture(e: React.MouseEvent) {
+    if (dragState.current.moved) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  // Seta: avança ~3 cantores por clique.
+  function scrollByCards(direction: 1 | -1) {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const card = el.querySelector<HTMLElement>('a');
+    const cardWidth = card ? card.offsetWidth + 16 : 96;
+    el.scrollBy({ left: direction * cardWidth * 3, behavior: 'smooth' });
+  }
 
   useEffect(() => {
     apiFetch('/artists')
@@ -101,16 +142,26 @@ export default function HomePage() {
           <InstrumentBackdrop />
           <h2 className="px-5 text-sm text-smix-muted mb-3">Artistas</h2>
 
-          {/* Mobile/tablet: ~5 visíveis por vez. Desktop: ~8 visíveis. Arraste para o lado para ver mais. */}
-          <div className="flex gap-3 md:gap-4 overflow-x-auto px-5 pb-2 snap-x snap-mandatory scrollbar-hide scroll-smooth">
-            {artists.map((artist, i) => {
-              const instrument = INSTRUMENTS[i % INSTRUMENTS.length];
-              return (
-                <a
-                  key={artist.id}
-                  href={`/artistas/${artist.id}`}
-                  className="flex-shrink-0 w-[18%] md:w-[11%] min-w-[64px] flex flex-col items-center gap-2 snap-start group"
-                >
+          {/* Mobile/tablet: ~5 visíveis por vez, arraste com o dedo. Desktop: ~8 visíveis,
+              arraste com o mouse ou use as setas. */}
+          <div className="relative group/carousel">
+            <div
+              ref={scrollerRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={endDrag}
+              onMouseLeave={endDrag}
+              onClickCapture={handleClickCapture}
+              className="flex gap-3 md:gap-4 overflow-x-auto px-5 pb-2 snap-x snap-mandatory scrollbar-hide scroll-smooth cursor-grab active:cursor-grabbing select-none"
+            >
+              {artists.map((artist, i) => {
+                const instrument = INSTRUMENTS[i % INSTRUMENTS.length];
+                return (
+                  <a
+                    key={artist.id}
+                    href={`/artistas/${artist.id}`}
+                    className="flex-shrink-0 w-[18%] md:w-[11%] min-w-[64px] flex flex-col items-center gap-2 snap-start group"
+                  >
                   <div className="relative">
                     <div
                       className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden flex items-center justify-center text-base md:text-lg font-semibold bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} group-hover:scale-105 transition-transform shadow-lg`}
@@ -123,14 +174,33 @@ export default function HomePage() {
                       )}
                     </div>
                     {/* Selo de instrumento — dá vida e diferencia cada card */}
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-smix-bg border border-smix-border flex items-center justify-center p-1">
-                      <InstrumentIcon type={instrument} className="w-full h-full" />
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-smix-bg border border-smix-border overflow-hidden">
+                      <InstrumentIcon type={instrument} width={48} className="w-full h-full rounded-full" />
                     </div>
                   </div>
                   <span className="text-xs text-center text-smix-muted line-clamp-2">{artist.name}</span>
-                </a>
-              );
-            })}
+                  </a>
+                );
+              })}
+            </div>
+
+            {/* Setas: só no desktop (mobile já arrasta com o dedo naturalmente) */}
+            <button
+              type="button"
+              aria-label="Ver cantores anteriores"
+              onClick={() => scrollByCards(-1)}
+              className="hidden md:flex absolute left-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-smix-surface/90 border border-smix-border items-center justify-center text-smix-text opacity-0 group-hover/carousel:opacity-100 transition hover:border-smix-accent"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              aria-label="Ver mais cantores"
+              onClick={() => scrollByCards(1)}
+              className="hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-smix-surface/90 border border-smix-border items-center justify-center text-smix-text opacity-0 group-hover/carousel:opacity-100 transition hover:border-smix-accent"
+            >
+              ›
+            </button>
           </div>
         </section>
       )}

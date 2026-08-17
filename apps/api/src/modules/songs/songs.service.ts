@@ -31,4 +31,17 @@ export class SongsService {
   create(data: { title: string; artistId: string; description?: string; coverUrl?: string; category?: string }) {
     return this.prisma.song.create({ data });
   }
+
+  update(
+    id: string,
+    data: {
+      title?: string;
+      description?: string;
+      coverUrl?: string;
+      category?: string;
+      status?: 'ACTIVE' | 'INACTIVE';
+    },
+  ) {
+    return this.prisma.song.update({ where: { id }, data });
+  }
 }

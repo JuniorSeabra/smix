@@ -5,6 +5,15 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class AdminFilesService {
   constructor(private prisma: PrismaService) {}
 
+  list(songId?: string) {
+    return this.prisma.file.findMany({
+      where: songId ? { songId } : undefined,
+      include: { song: { select: { title: true } }, license: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+  }
+
   create(data: { songId: string; name: string; type: string; googleDriveFileId: string; licenseId?: string }) {
     return this.prisma.file.create({ data });
   }

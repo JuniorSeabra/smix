@@ -33,6 +33,11 @@ export class AdminController {
     return result;
   }
 
+  @Get('songs')
+  listSongs(@Query('search') search?: string) {
+    return this.adminService.listSongs(search);
+  }
+
   @Get('subscriptions')
   listSubscriptions() {
     return this.adminService.listSubscriptions();

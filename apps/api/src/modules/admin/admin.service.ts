@@ -41,6 +41,15 @@ export class AdminService {
   }
 
   // Listagens administrativas
+  listSongs(search?: string) {
+    return this.prisma.song.findMany({
+      where: search ? { title: { contains: search, mode: 'insensitive' } } : undefined,
+      include: { artist: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+  }
+
   listUsers(search?: string) {
     return this.prisma.user.findMany({
       where: search ? { OR: [{ name: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }] } : undefined,

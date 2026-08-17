@@ -63,6 +63,8 @@ export default function AdminUsersPage() {
         <nav className="flex gap-4 text-sm text-smix-muted">
           <a href="/admin" className="hover:text-smix-text transition">Dashboard</a>
           <a href="/admin/artistas" className="hover:text-smix-text transition">Artistas</a>
+          <a href="/admin/musicas" className="hover:text-smix-text transition">Músicas</a>
+          <a href="/admin/arquivos" className="hover:text-smix-text transition">Arquivos</a>
           <a href="/admin/usuarios" className="text-smix-text">Usuários</a>
         </nav>
       </div>
