@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { apiFetch } from '../../lib/api';
+import { useEffect, useRef, useState } from 'react';
+import { apiFetch, getToken } from '../../lib/api';
 import { Header } from '../../components/Header';
 import { BottomNav } from '../../components/BottomNav';
 
@@ -17,6 +17,9 @@ export default function PerfilPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     apiFetch('/users/me')
@@ -36,6 +39,34 @@ export default function PerfilPage() {
     if (res.ok) {
       setProfile((prev) => (prev ? { ...prev, name } : prev));
       setEditing(false);
+    }
+  }
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setPhotoError(null);
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/me/photo`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message ?? 'Não foi possível atualizar a foto');
+      }
+      const updated = await res.json();
+      setProfile((prev) => (prev ? { ...prev, photoUrl: updated.photoUrl } : prev));
+    } catch (err: any) {
+      setPhotoError(err.message ?? 'Erro ao atualizar foto');
+    } finally {
+      setUploadingPhoto(false);
     }
   }
 
@@ -68,12 +99,28 @@ export default function PerfilPage() {
 
       <div className="px-5 mt-6 flex flex-col gap-4 max-w-sm">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-smix-surface border border-smix-border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            disabled={uploadingPhoto}
+            className="relative w-16 h-16 rounded-full bg-smix-surface border border-smix-border overflow-hidden flex-shrink-0 disabled:opacity-60"
+            aria-label="Trocar foto"
+          >
             {profile.photoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={profile.photoUrl} alt={profile.name} className="w-full h-full object-cover" />
             )}
-          </div>
+            <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white text-[10px] opacity-0 hover:opacity-100 transition">
+              {uploadingPhoto ? '...' : 'Trocar'}
+            </span>
+          </button>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
           {editing ? (
             <input
               value={name}
@@ -84,6 +131,7 @@ export default function PerfilPage() {
             <span className="font-medium">{profile.name}</span>
           )}
         </div>
+        {photoError && <p className="text-red-400 text-xs -mt-2">{photoError}</p>}
 
         <div className="rounded-xl2 bg-smix-surface border border-smix-border px-4 py-3 text-sm">
           <p className="text-smix-muted">E-mail</p>

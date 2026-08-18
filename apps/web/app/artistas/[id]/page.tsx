@@ -42,14 +42,30 @@ export default function ArtistPage() {
       <Header />
       <BottomNav />
 
-      <div className="px-5 mt-4 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-smix-surface border border-smix-border overflow-hidden flex-shrink-0">
-          {artist.photoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={artist.photoUrl} alt={artist.name} className="w-full h-full object-cover" />
-          )}
+      <div className="relative h-40 md:h-56 -mt-1">
+        {artist.photoUrl ? (
+          <>
+            {/* Foto do artista como fundo, com um overlay leve (brightness+gradiente) —
+                vibrante o bastante pra não "sumir", escuro só onde o texto precisa de contraste. */}
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${artist.photoUrl})`, filter: 'brightness(0.9) contrast(1.05)' }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-smix-bg via-smix-bg/25 to-transparent" />
+          </>
+        ) : (
+          <div className={`absolute inset-0 bg-gradient-to-br from-smix-primary/30 to-smix-accent/20`} />
+        )}
+
+        <div className="absolute bottom-0 left-0 px-5 pb-4 flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-smix-surface border-2 border-smix-bg overflow-hidden flex-shrink-0 shadow-lg">
+            {artist.photoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={artist.photoUrl} alt={artist.name} className="w-full h-full object-cover" />
+            )}
+          </div>
+          <h1 className="text-2xl font-bold drop-shadow-md">{artist.name}</h1>
         </div>
-        <h1 className="text-2xl font-bold">{artist.name}</h1>
       </div>
 
       <div className="px-5 mt-6 flex flex-col gap-6">

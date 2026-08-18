@@ -32,6 +32,9 @@ export default function AdminArquivosPage() {
   const [licenseType, setLicenseType] = useState('');
   const [savingLicense, setSavingLicense] = useState(false);
 
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
   async function load() {
     const [songsRes, licensesRes, filesRes] = await Promise.all([
       apiFetch('/admin/songs'),
@@ -79,6 +82,26 @@ export default function AdminArquivosPage() {
       setMessage(err.message ?? 'Erro ao vincular arquivo');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleTestFile() {
+    if (!googleDriveFileId.trim()) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await apiFetch(`/admin/google-drive/files/${encodeURIComponent(googleDriveFileId.trim())}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message ?? 'Arquivo não encontrado no Drive');
+      }
+      const meta = await res.json();
+      const sizeMb = meta.size ? (meta.size / 1024 / 1024).toFixed(1) : '?';
+      setTestResult({ ok: true, message: `Encontrado: ${meta.name} (${sizeMb} MB)` });
+    } catch (err: any) {
+      setTestResult({ ok: false, message: err.message ?? 'Erro ao testar arquivo' });
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -156,12 +179,28 @@ export default function AdminArquivosPage() {
             <option value="click">Click</option>
             <option value="guide">Guide</option>
           </select>
-          <input
-            value={googleDriveFileId}
-            onChange={(e) => setGoogleDriveFileId(e.target.value)}
-            placeholder="ID do arquivo no Google Drive"
-            className="rounded-lg bg-smix-bg border border-smix-border px-3 py-2 text-sm outline-none focus:border-smix-accent"
-          />
+          <div className="flex gap-2">
+            <input
+              value={googleDriveFileId}
+              onChange={(e) => {
+                setGoogleDriveFileId(e.target.value);
+                setTestResult(null);
+              }}
+              placeholder="ID do arquivo no Google Drive"
+              className="flex-1 rounded-lg bg-smix-bg border border-smix-border px-3 py-2 text-sm outline-none focus:border-smix-accent"
+            />
+            <button
+              type="button"
+              onClick={handleTestFile}
+              disabled={testing || !googleDriveFileId.trim()}
+              className="rounded-lg border border-smix-border px-3 py-2 text-xs hover:border-smix-accent transition disabled:opacity-50 whitespace-nowrap"
+            >
+              {testing ? 'Testando...' : 'Testar arquivo'}
+            </button>
+          </div>
+          {testResult && (
+            <p className={`text-xs ${testResult.ok ? 'text-smix-accent' : 'text-red-400'}`}>{testResult.message}</p>
+          )}
           <select
             value={licenseId}
             onChange={(e) => setLicenseId(e.target.value)}

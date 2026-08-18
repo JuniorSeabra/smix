@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { processProfilePhoto } from '../../common/utils/profile-photo';
 
 const SALT_ROUNDS = 12;
 
@@ -14,20 +15,21 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, photo?: Express.Multer.File) {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
       throw new ConflictException('E-mail já cadastrado');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    const photoUrl = photo ? await processProfilePhoto(photo.buffer, photo.mimetype) : undefined;
 
     const user = await this.prisma.user.create({
       data: {
         name: dto.name,
         email: dto.email,
         passwordHash,
-        photoUrl: dto.photoUrl,
+        photoUrl,
       },
     });
 

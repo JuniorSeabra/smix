@@ -21,35 +21,6 @@ export default function CadastroPage() {
     setPhotoPreview(URL.createObjectURL(file));
   }
 
-  // Redimensiona a foto para no máximo 300px e converte para base64,
-  // para poder enviar junto do cadastro sem depender de um serviço de
-  // upload externo ainda (Google Drive só entra para os MultiTracks).
-  function resizePhoto(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const reader = new FileReader();
-      reader.onload = () => {
-        img.onload = () => {
-          const size = 300;
-          const canvas = document.createElement('canvas');
-          canvas.width = size;
-          canvas.height = size;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return reject(new Error('Canvas indisponível'));
-          const scale = Math.max(size / img.width, size / img.height);
-          const w = img.width * scale;
-          const h = img.height * scale;
-          ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
-        };
-        img.onerror = reject;
-        img.src = reader.result as string;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -65,12 +36,17 @@ export default function CadastroPage() {
 
     setLoading(true);
     try {
-      const photoUrl = photoFile ? await resizePhoto(photoFile) : undefined;
+      // multipart/form-data — a foto de verdade vai pro backend, que valida o
+      // conteúdo real do arquivo, redimensiona e remove metadados (ver profile-photo.ts).
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('email', email);
+      formData.append('password', password);
+      if (photoFile) formData.append('photo', photoFile);
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, photoUrl }),
+        body: formData,
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);

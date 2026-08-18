@@ -1,9 +1,14 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { GoogleDriveService } from '../google-drive/google-drive.service';
+import { DriveFileStream } from '../google-drive/interfaces/drive-file.interface';
 
 @Injectable()
 export class FilesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private googleDriveService: GoogleDriveService,
+  ) {}
 
   // Verifica se o usuário tem assinatura ativa antes de qualquer acesso a arquivo.
   // Chamado sempre no backend — nunca confiar em uma checagem feita só no frontend.
@@ -14,7 +19,7 @@ export class FilesService {
     return !!subscription;
   }
 
-  async getDownloadUrl(userId: string, fileId: string) {
+  async getDownloadStream(userId: string, fileId: string, ip: string | undefined): Promise<DriveFileStream> {
     const file = await this.prisma.file.findUnique({ where: { id: fileId } });
     if (!file || file.status !== 'ACTIVE') {
       throw new NotFoundException('Arquivo não encontrado');
@@ -26,21 +31,17 @@ export class FilesService {
     }
 
     // Registro para auditoria e rate limiting de downloads
-    await this.prisma.downloadLog.create({ data: { userId, fileId } });
+    await this.prisma.downloadLog.create({ data: { userId, fileId, ip } });
 
-    // Aqui entra a chamada real à Google Drive API (drive.files.get com alt=media,
-    // ou geração de um link temporário) usando file.googleDriveFileId.
-    // O ID do Drive NUNCA é exposto na resposta ao cliente — só o resultado do download.
-    const driveDownloadUrl = await this.resolveGoogleDriveDownload(file.googleDriveFileId);
-
-    return { downloadUrl: driveDownloadUrl, fileName: file.name };
-  }
-
-  private async resolveGoogleDriveDownload(googleDriveFileId: string): Promise<string> {
-    // Placeholder: será implementado quando as credenciais do Google Drive
-    // (GOOGLE_DRIVE_*) estiverem configuradas no .env. A implementação real deve
-    // fazer streaming do arquivo pelo próprio backend (proxy) ou gerar um link
-    // assinado de curta duração — nunca retornar um link público permanente do Drive.
-    throw new Error('Integração com Google Drive ainda não configurada');
+    // Streaming direto pelo backend (proxy) — o ID do Drive nunca é exposto ao cliente,
+    // só os bytes do arquivo. Usa o nome cadastrado no S-MIX, mas preserva a extensão
+    // real do arquivo no Drive (o cadastro admin costuma guardar só um nome amigável).
+    const driveStream = await this.googleDriveService.getFileStream(file.googleDriveFileId);
+    const extension = driveStream.name.includes('.') ? driveStream.name.split('.').pop() : undefined;
+    const friendlyName =
+      extension && !file.name.toLowerCase().endsWith(`.${extension.toLowerCase()}`)
+        ? `${file.name}.${extension}`
+        : file.name;
+    return { ...driveStream, name: friendlyName };
   }
 }

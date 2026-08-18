@@ -40,9 +40,22 @@ export default function SongPage() {
       if (!res.ok) {
         throw new Error('Não foi possível iniciar o download.');
       }
-      const data = await res.json();
-      // Backend retorna a URL segura/temporária — nunca o link direto do Drive
-      window.open(data.downloadUrl, '_blank');
+      // O backend faz streaming do arquivo direto (proxy do Drive) — nunca expõe
+      // um link do Drive. Baixamos o blob aqui e disparamos o download no navegador.
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') ?? '';
+      const match = /filename="?([^"]+)"?/.exec(disposition);
+      const fileName = match ? decodeURIComponent(match[1]) : 'download';
+
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+
       setDownloadState((prev) => ({ ...prev, [fileId]: 'idle' }));
     } catch (err: any) {
       setErrorMsg(err.message ?? 'Erro ao baixar arquivo');

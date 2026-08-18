@@ -204,6 +204,31 @@ export default function HomePage() {
           </div>
         </section>
       )}
+
+      {!query.trim() && (
+        <section className="relative mt-10 mx-5 rounded-xl2 overflow-hidden border border-smix-border">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage:
+                "url(https://images.unsplash.com/photo-1483000805330-4eaf0a0d82da?auto=format&fit=crop&w=1200&q=70)",
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-smix-bg via-smix-bg/80 to-smix-bg/20" />
+
+          <div className="relative px-6 py-8 md:py-12 max-w-md">
+            <span className="text-smix-accent text-xs font-semibold tracking-wide uppercase">
+              S-MIX MultiTracks
+            </span>
+            <h2 className="text-xl md:text-2xl font-bold mt-2 leading-snug">
+              Tenha suas tracks sempre com você.
+            </h2>
+            <p className="text-smix-muted text-sm mt-2">
+              Acesse seus multitracks de qualquer dispositivo, na hora do ensaio ou do culto.
+            </p>
+          </div>
+        </section>
+      )}
     </main>
   );
 }
