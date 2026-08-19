@@ -131,10 +131,12 @@ export default function HomePage() {
       {!query.trim() && (
         <section className="relative mt-8 py-4">
           <InstrumentBackdrop />
-          <h2 className="px-5 text-sm text-smix-muted mb-3">Artistas</h2>
+          <h2 className="mx-5 mb-3 inline-block px-2 py-0.5 rounded-md bg-smix-bg/60 backdrop-blur-sm text-sm text-smix-text">
+            Artistas
+          </h2>
 
           {artists.length === 0 && (
-            <p className="px-5 text-smix-muted text-sm">
+            <p className="px-5 text-smix-muted text-sm bg-smix-bg/60 backdrop-blur-sm inline-block rounded-md py-1">
               Nenhum cantor cadastrado ainda — vá em Painel Admin → Artistas para adicionar.
             </p>
           )}
@@ -176,7 +178,7 @@ export default function HomePage() {
                       <InstrumentIcon type={instrument} width={48} className="w-full h-full rounded-full" />
                     </div>
                   </div>
-                  <span className="text-xs text-center text-smix-muted line-clamp-2">{artist.name}</span>
+                  <span className="text-xs text-center text-smix-text line-clamp-2 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">{artist.name}</span>
                   </a>
                 );
               })}
