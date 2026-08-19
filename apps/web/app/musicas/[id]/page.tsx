@@ -21,6 +21,7 @@ export default function SongPage() {
   const [song, setSong] = useState<SongDetail | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'not-found' | 'error'>('loading');
   const [downloadState, setDownloadState] = useState<Record<string, 'idle' | 'loading' | 'error'>>({});
+  const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export default function SongPage() {
   async function handleDownload(fileId: string) {
     setErrorMsg(null);
     setDownloadState((prev) => ({ ...prev, [fileId]: 'loading' }));
+    setDownloadProgress((prev) => ({ ...prev, [fileId]: 0 }));
     try {
       const res = await apiFetch(`/files/${fileId}/download`);
       if (res.status === 403) {
@@ -52,13 +54,32 @@ export default function SongPage() {
       if (!res.ok) {
         throw new Error('Não foi possível iniciar o download.');
       }
-      // O backend faz streaming do arquivo direto (proxy do Drive) — nunca expõe
-      // um link do Drive. Baixamos o blob aqui e disparamos o download no navegador.
-      const blob = await res.blob();
+
       const disposition = res.headers.get('Content-Disposition') ?? '';
       const match = /filename="?([^"]+)"?/.exec(disposition);
       const fileName = match ? decodeURIComponent(match[1]) : 'download';
+      const totalSize = Number(res.headers.get('Content-Length') ?? 0);
 
+      // Lê o corpo em pedaços pra atualizar uma barra de progresso real —
+      // arquivo de multitrack costuma ter centenas de MB, e sem isso o
+      // download parece travado por 1-2 minutos sem nenhum feedback.
+      const reader = res.body?.getReader();
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          if (totalSize > 0) {
+            setDownloadProgress((prev) => ({ ...prev, [fileId]: Math.round((received / totalSize) * 100) }));
+          }
+        }
+      }
+
+      const blob = chunks.length > 0 ? new Blob(chunks as BlobPart[]) : await res.blob();
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = objectUrl;
@@ -135,22 +156,33 @@ export default function SongPage() {
           )}
           {song.files.map((file) => {
             const state = downloadState[file.id] ?? 'idle';
+            const progress = downloadProgress[file.id] ?? 0;
             return (
               <div
                 key={file.id}
-                className="rounded-xl2 bg-smix-surface border border-smix-border px-4 py-3 flex items-center justify-between"
+                className="rounded-xl2 bg-smix-surface border border-smix-border px-4 py-3"
               >
-                <div>
-                  <p className="text-sm">{file.name}</p>
-                  <p className="text-smix-muted text-xs">{file.type}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm">{file.name}</p>
+                    <p className="text-smix-muted text-xs">{file.type}</p>
+                  </div>
+                  <button
+                    onClick={() => handleDownload(file.id)}
+                    disabled={state === 'loading'}
+                    className="rounded-xl2 bg-smix-primary px-4 py-2 text-xs font-medium hover:opacity-90 transition disabled:opacity-50 min-w-[84px]"
+                  >
+                    {state === 'loading' ? `${progress}%` : 'Download'}
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleDownload(file.id)}
-                  disabled={state === 'loading'}
-                  className="rounded-xl2 bg-smix-primary px-4 py-2 text-xs font-medium hover:opacity-90 transition disabled:opacity-50"
-                >
-                  {state === 'loading' ? 'Baixando...' : 'Download'}
-                </button>
+                {state === 'loading' && (
+                  <div className="mt-2 h-1.5 rounded-full bg-smix-bg overflow-hidden">
+                    <div
+                      className="h-full bg-smix-accent transition-all duration-300"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
