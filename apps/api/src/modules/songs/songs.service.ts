@@ -21,13 +21,14 @@ function normalize(text: string): string {
 export class SongsService {
   constructor(private prisma: PrismaService) {}
 
-  // Busca fuzzy unificada: título, artista, ou os dois juntos — tolerante a erro de
-  // digitação, acento e pequenas diferenças ortográficas (ex: "Jorge Matues" → "Jorge & Mateus").
-  // O catálogo inteiro é carregado e comparado em memória (Fuse.js); em escala de milhares
-  // de músicas isso ainda é rápido, mas se crescer muito além disso vale mover pra uma busca
-  // no próprio Postgres (pg_trgm) ou um índice dedicado.
+  // Busca em duas etapas:
+  // 1) Correspondência direta (substring) — o texto digitado precisa aparecer
+  //    de verdade no título ou no nome do artista. É o caso normal e não erra.
+  // 2) Só se a etapa 1 não achar nada, cai pra fuzzy (Fuse.js) com limiar
+  //    apertado — pega erro de digitação tipo "Jorge Matues" → "Jorge & Mateus",
+  //    mas sem misturar resultado sem relação nenhuma com a busca.
   async search(query: string) {
-    const q = query.trim();
+    const q = normalize(query);
     if (!q) return [];
 
     const songs = await this.prisma.song.findMany({
@@ -39,22 +40,26 @@ export class SongsService {
       song,
       normalizedTitle: normalize(song.title),
       normalizedArtist: normalize(song.artist.name),
-      normalizedCombined: normalize(`${song.artist.name} ${song.title}`),
     }));
+
+    const directMatches = searchable.filter(
+      (item) => item.normalizedTitle.includes(q) || item.normalizedArtist.includes(q),
+    );
+    if (directMatches.length > 0) {
+      return directMatches.slice(0, 30).map((item) => item.song);
+    }
 
     const fuse = new Fuse(searchable, {
       keys: [
-        { name: 'normalizedTitle', weight: 0.4 },
-        { name: 'normalizedArtist', weight: 0.4 },
-        { name: 'normalizedCombined', weight: 0.2 },
+        { name: 'normalizedTitle', weight: 0.5 },
+        { name: 'normalizedArtist', weight: 0.5 },
       ],
-      threshold: 0.4,
-      ignoreLocation: true,
-      minMatchCharLength: 2,
+      threshold: 0.3,
+      minMatchCharLength: 3,
     });
 
     return fuse
-      .search(normalize(q), { limit: 30 })
+      .search(q, { limit: 30 })
       .map((result) => result.item.song);
   }
 
