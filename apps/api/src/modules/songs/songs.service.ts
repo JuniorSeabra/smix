@@ -86,4 +86,20 @@ export class SongsService {
   ) {
     return this.prisma.song.update({ where: { id }, data });
   }
+
+  // Exclui de verdade (não é o toggle de status). Apaga primeiro os
+  // arquivos vinculados e os logs de download deles.
+  async remove(id: string) {
+    const fileIds = (await this.prisma.file.findMany({ where: { songId: id }, select: { id: true } })).map(
+      (f) => f.id,
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.downloadLog.deleteMany({ where: { fileId: { in: fileIds } } }),
+      this.prisma.file.deleteMany({ where: { songId: id } }),
+      this.prisma.song.delete({ where: { id } }),
+    ]);
+
+    return { message: 'Música excluída.' };
+  }
 }

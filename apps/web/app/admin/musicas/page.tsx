@@ -45,6 +45,21 @@ export default function AdminMusicasPage() {
     if (res.ok) load();
   }
 
+  async function handleDelete(song: Song) {
+    const confirmed = window.confirm(
+      `Excluir "${song.title}" definitivamente? O arquivo continua no Drive, só some do site — não é reversível.`,
+    );
+    if (!confirmed) return;
+
+    const res = await apiFetch(`/songs/${song.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      alert(body?.message ?? 'Não foi possível excluir esta música.');
+      return;
+    }
+    load();
+  }
+
   return (
     <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto pb-24">
       <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
@@ -86,16 +101,21 @@ export default function AdminMusicasPage() {
               <p>{song.title}</p>
               <p className="text-smix-muted text-xs">{song.artist.name}{song.category ? ` · ${song.category}` : ''}</p>
             </div>
-            <button
-              onClick={() => toggleStatus(song)}
-              className={`text-xs px-2 py-1 rounded-full border ${
-                song.status === 'ACTIVE'
-                  ? 'border-smix-accent text-smix-accent'
-                  : 'border-smix-border text-smix-muted'
-              }`}
-            >
-              {song.status}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => toggleStatus(song)}
+                className={`text-xs px-2 py-1 rounded-full border ${
+                  song.status === 'ACTIVE'
+                    ? 'border-smix-accent text-smix-accent'
+                    : 'border-smix-border text-smix-muted'
+                }`}
+              >
+                {song.status}
+              </button>
+              <button onClick={() => handleDelete(song)} className="text-xs text-red-400 hover:underline">
+                Excluir
+              </button>
+            </div>
           </div>
         ))}
         {songs.length === 0 && <p className="text-smix-muted text-sm">Nenhuma música cadastrada ainda.</p>}

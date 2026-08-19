@@ -2,6 +2,20 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GoogleDriveService } from '../google-drive/google-drive.service';
 
+// Nome de arquivo do Drive costuma vir como "Artista - Música.ext" — sem
+// isso, o título salvo ficava com o nome do cantor duplicado dentro dele
+// (ex: música "Gabriel Guedes - A Benção" pro artista "Gabriel Guedes").
+// Tira o nome do artista de dentro do título e limpa separador sobrando.
+function cleanSongTitle(rawTitle: string, artistName: string): string {
+  const escapedArtist = artistName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const withoutArtist = rawTitle.replace(new RegExp(escapedArtist, 'ig'), '');
+  const cleaned = withoutArtist
+    .replace(/^[\s\-–_:]+|[\s\-–_:]+$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return cleaned || rawTitle.trim();
+}
+
 @Injectable()
 export class AdminFilesService {
   constructor(
@@ -34,41 +48,11 @@ export class AdminFilesService {
     return this.prisma.license.create({ data });
   }
 
-  // Fluxo simplificado: Cantor + Música + arquivo do computador -> "Vincular".
-  // Reaproveita o artista se já existir (por nome, sem diferenciar
-  // maiúscula/acento), sobe o arquivo pra pasta dele no Drive (cria a pasta
-  // só se ainda não existir) e já cria a música com o arquivo vinculado.
-  async uploadAndLink(artistName: string, title: string, file: Express.Multer.File) {
-    const name = artistName.trim();
-
-    let artist = await this.prisma.artist.findFirst({
-      where: { name: { equals: name, mode: 'insensitive' } },
-    });
-    if (!artist) {
-      artist = await this.prisma.artist.create({ data: { name } });
-    }
-
-    const folderId = await this.googleDriveService.findOrCreateArtistFolder(artist.name);
-    const driveFile = await this.googleDriveService.uploadFile(folderId, file.originalname, file.path, file.mimetype);
-
-    const song = await this.prisma.song.create({ data: { title: title.trim(), artistId: artist.id } });
-    const createdFile = await this.prisma.file.create({
-      data: {
-        songId: song.id,
-        name: 'Playback completo',
-        type: 'full',
-        googleDriveFileId: driveFile.id,
-      },
-    });
-
-    return { artist, song, file: createdFile };
-  }
-
-  // Alternativa ao upload direto (que esbarra num limite do Google: conta de
-  // serviço não tem cota própria pra SUBIR arquivo numa pasta pessoal comum —
-  // só ler funciona sem restrição). Aqui o admin sobe o arquivo direto no
-  // Google Drive (pelo app/site do Drive mesmo) dentro da pasta do cantor, e
-  // o S-MIX só LÊ a estrutura de pastas e importa o que ainda não existe.
+  // Sobe o arquivo direto no Google Drive (pelo app/site do Drive mesmo)
+  // dentro da pasta do cantor, e o S-MIX só LÊ a estrutura de pastas e
+  // importa o que ainda não existe. (Upload direto pelo site não é possível:
+  // conta de serviço não tem cota própria pra escrever em pasta pessoal —
+  // só ler funciona sem essa restrição.)
   async syncFromDrive() {
     const folders = await this.googleDriveService.listArtistFolders();
     let artistsCreated = 0;
@@ -90,7 +74,9 @@ export class AdminFilesService {
         });
         if (alreadyLinked) continue;
 
-        const title = driveFile.name.replace(/\.[^./]+$/, '').trim() || driveFile.name;
+        const rawTitle = driveFile.name.replace(/\.[^./]+$/, '').trim() || driveFile.name;
+        const title = cleanSongTitle(rawTitle, artist.name);
+
         const song = await this.prisma.song.create({ data: { title, artistId: artist.id } });
         await this.prisma.file.create({
           data: {

@@ -37,4 +37,25 @@ export class ArtistsService {
   update(id: string, data: { name?: string; photoUrl?: string; description?: string; status?: 'ACTIVE' | 'INACTIVE' }) {
     return this.prisma.artist.update({ where: { id }, data });
   }
+
+  // Exclui de verdade (não é o "Desativar"). Precisa apagar primeiro tudo
+  // que referencia as músicas desse artista, senão o banco recusa por
+  // violar chave estrangeira.
+  async remove(id: string) {
+    const songIds = (await this.prisma.song.findMany({ where: { artistId: id }, select: { id: true } })).map(
+      (s) => s.id,
+    );
+    const fileIds = (
+      await this.prisma.file.findMany({ where: { songId: { in: songIds } }, select: { id: true } })
+    ).map((f) => f.id);
+
+    await this.prisma.$transaction([
+      this.prisma.downloadLog.deleteMany({ where: { fileId: { in: fileIds } } }),
+      this.prisma.file.deleteMany({ where: { songId: { in: songIds } } }),
+      this.prisma.song.deleteMany({ where: { artistId: id } }),
+      this.prisma.artist.delete({ where: { id } }),
+    ]);
+
+    return { message: 'Artista excluído.' };
+  }
 }

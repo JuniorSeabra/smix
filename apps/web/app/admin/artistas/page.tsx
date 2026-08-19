@@ -22,6 +22,21 @@ export default function AdminArtistsPage() {
     load();
   }, []);
 
+  async function handleDelete(artist: Artist) {
+    const confirmed = window.confirm(
+      `Excluir "${artist.name}" definitivamente? Isso apaga também todas as músicas e arquivos vinculados a ele — não é reversível. O arquivo continua no Drive, só some do site.`,
+    );
+    if (!confirmed) return;
+
+    const res = await apiFetch(`/artists/${artist.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      alert(body?.message ?? 'Não foi possível excluir este artista.');
+      return;
+    }
+    load();
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
@@ -86,7 +101,12 @@ export default function AdminArtistsPage() {
             className="rounded-xl2 bg-smix-surface border border-smix-border px-4 py-3 flex justify-between items-center text-sm"
           >
             <span>{artist.name}</span>
-            <span className="text-smix-muted text-xs">{artist.status}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-smix-muted text-xs">{artist.status}</span>
+              <button onClick={() => handleDelete(artist)} className="text-xs text-red-400 hover:underline">
+                Excluir
+              </button>
+            </div>
           </div>
         ))}
         {artists.length === 0 && <p className="text-smix-muted text-sm">Nenhum artista cadastrado ainda.</p>}
