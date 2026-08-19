@@ -20,7 +20,10 @@ export class FilesService {
   }
 
   async getDownloadStream(userId: string, fileId: string, ip: string | undefined): Promise<DriveFileStream> {
-    const file = await this.prisma.file.findUnique({ where: { id: fileId } });
+    const file = await this.prisma.file.findUnique({
+      where: { id: fileId },
+      include: { song: { include: { artist: true } } },
+    });
     if (!file || file.status !== 'ACTIVE') {
       throw new NotFoundException('Arquivo não encontrado');
     }
@@ -34,14 +37,15 @@ export class FilesService {
     await this.prisma.downloadLog.create({ data: { userId, fileId, ip } });
 
     // Streaming direto pelo backend (proxy) — o ID do Drive nunca é exposto ao cliente,
-    // só os bytes do arquivo. Usa o nome cadastrado no S-MIX, mas preserva a extensão
-    // real do arquivo no Drive (o cadastro admin costuma guardar só um nome amigável).
+    // só os bytes do arquivo. O nome do download vem sempre do artista + música
+    // cadastrados no banco (o mesmo texto que aparece na busca/nas telas do site),
+    // nunca do nome do arquivo dentro do Drive — só a extensão real vem de lá.
     const driveStream = await this.googleDriveService.getFileStream(file.googleDriveFileId);
     const extension = driveStream.name.includes('.') ? driveStream.name.split('.').pop() : undefined;
-    const friendlyName =
-      extension && !file.name.toLowerCase().endsWith(`.${extension.toLowerCase()}`)
-        ? `${file.name}.${extension}`
-        : file.name;
+
+    const baseName = `${file.song.artist.name} - ${file.song.title}`;
+    const friendlyName = extension ? `${baseName}.${extension}` : baseName;
+
     return { ...driveStream, name: friendlyName };
   }
 }
