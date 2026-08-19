@@ -17,6 +17,12 @@ export class AdminController {
     return this.adminService.getDashboard();
   }
 
+  // Série temporal + agregados usados pelos gráficos de /admin/atividade.
+  @Get('stats')
+  getStats() {
+    return this.adminService.getStats();
+  }
+
   @Get('users')
   listUsers(@Query('search') search?: string) {
     return this.adminService.listUsers(search);

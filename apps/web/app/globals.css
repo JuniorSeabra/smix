@@ -29,3 +29,22 @@ body {
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* O Safari no iPhone/iPad dá zoom automático ao focar qualquer campo com fonte
+   menor que 16px — e não desfaz o zoom ao sair do campo, deixando a interface
+   ampliada pra sempre. Forçar 16px no campo em si (só até o breakpoint md,
+   onde o problema não existe) resolve na origem, sem desativar o pinch-zoom. */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Trava a escala do documento: mesmo que algum navegador tente ampliar, o
+   layout volta ao tamanho normal. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}

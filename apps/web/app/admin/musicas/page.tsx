@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { AdminNav } from '../../../components/AdminNav';
+import { AdminBottomNav } from '../../../components/AdminBottomNav';
 
 type Song = { id: string; title: string; category: string | null; status: string; artist: { name: string } };
 
@@ -61,7 +62,7 @@ export default function AdminMusicasPage() {
   }
 
   return (
-    <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto pb-24">
+    <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto pb-28">
       <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Músicas</h1>
         <AdminNav current="/admin/musicas" />
@@ -120,6 +121,8 @@ export default function AdminMusicasPage() {
         ))}
         {songs.length === 0 && <p className="text-smix-muted text-sm">Nenhuma música cadastrada ainda.</p>}
       </div>
+
+      <AdminBottomNav current="/admin/musicas" />
     </main>
   );
 }

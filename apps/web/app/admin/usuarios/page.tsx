@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { AdminNav } from '../../../components/AdminNav';
+import { AdminBottomNav } from '../../../components/AdminBottomNav';
 
 type UserRow = { id: string; name: string; email: string; role: 'USER' | 'ADMIN'; status: 'ACTIVE' | 'INACTIVE' };
 
@@ -84,7 +85,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto pb-24">
+    <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto pb-28">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold">Usuários</h1>
         <AdminNav current="/admin/usuarios" />
@@ -205,6 +206,8 @@ export default function AdminUsersPage() {
           </p>
         )}
       </div>
+
+      <AdminBottomNav current="/admin/usuarios" />
     </main>
   );
 }

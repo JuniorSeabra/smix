@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { AdminNav } from '../../components/AdminNav';
+import { AdminBottomNav } from '../../components/AdminBottomNav';
+import { ChartCard, HorizontalBars } from '../../components/Charts';
 
 type Dashboard = {
   totalUsers: number;
@@ -55,7 +57,7 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto">
+    <main className="min-h-screen px-5 md:px-6 py-8 max-w-4xl mx-auto pb-28">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold">Painel Admin — S-MIX</h1>
         <AdminNav current="/admin" />
@@ -93,6 +95,14 @@ export default function AdminDashboardPage() {
           ))}
         </div>
       </section>
+
+      <div className="mt-8">
+      <ChartCard title="Indicadores" subtitle="Comparativo dos números atuais do sistema">
+        <HorizontalBars data={CARDS.map((card) => ({ label: card.label, value: Number(data[card.key]) }))} />
+      </ChartCard>
+      </div>
+
+      <AdminBottomNav current="/admin" />
     </main>
   );
 }

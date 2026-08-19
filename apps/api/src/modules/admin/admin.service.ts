@@ -136,6 +136,79 @@ export class AdminService {
     });
   }
 
+  // Números agregados pro painel de Atividade. A agregação roda no banco (não
+  // no navegador, sobre uma lista já truncada em 50 registros), pra que os
+  // gráficos mostrem o total real e não só o que coube na última listagem.
+  async getStats() {
+    const days = 14;
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    since.setDate(since.getDate() - (days - 1));
+
+    const [dashboard, downloadsByDay, auditByDay, topFiles] = await Promise.all([
+      this.getDashboard(),
+      this.prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+        SELECT date_trunc('day', "createdAt") AS day, COUNT(*) AS count
+        FROM "DownloadLog"
+        WHERE "createdAt" >= ${since}
+        GROUP BY day
+        ORDER BY day
+      `,
+      this.prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+        SELECT date_trunc('day', "createdAt") AS day, COUNT(*) AS count
+        FROM "AuditLog"
+        WHERE "createdAt" >= ${since}
+        GROUP BY day
+        ORDER BY day
+      `,
+      this.prisma.downloadLog.groupBy({
+        by: ['fileId'],
+        _count: { fileId: true },
+        orderBy: { _count: { fileId: 'desc' } },
+        take: 5,
+      }),
+    ]);
+
+    const files = await this.prisma.file.findMany({
+      where: { id: { in: topFiles.map((f) => f.fileId) } },
+      select: {
+        id: true,
+        name: true,
+        song: { select: { title: true, artist: { select: { name: true } } } },
+      },
+    });
+
+    // Preenche os dias sem registro com zero — senão o gráfico "pula" datas e
+    // dá a impressão de movimento em dia que não teve nada.
+    const toSeries = (rows: { day: Date; count: bigint }[]) => {
+      const byDay = new Map(rows.map((r) => [new Date(r.day).toISOString().slice(0, 10), Number(r.count)]));
+      return Array.from({ length: days }, (_, i) => {
+        const date = new Date(since);
+        date.setDate(since.getDate() + i);
+        const key = date.toISOString().slice(0, 10);
+        return { date: key, count: byDay.get(key) ?? 0 };
+      });
+    };
+
+    const { recentPayments, ...totals } = dashboard;
+
+    return {
+      totals,
+      downloadsPerDay: toSeries(downloadsByDay),
+      auditPerDay: toSeries(auditByDay),
+      topDownloads: topFiles.map((row) => {
+        const file = files.find((f) => f.id === row.fileId);
+        return {
+          fileId: row.fileId,
+          title: file?.song?.title ?? file?.name ?? 'Arquivo removido',
+          artist: file?.song?.artist?.name ?? '',
+          count: row._count.fileId,
+        };
+      }),
+    };
+  }
+
+
   async recordAudit(adminId: string, action: string, entity: string, entityId?: string) {
     return this.prisma.auditLog.create({ data: { adminId, action, entity, entityId } });
   }

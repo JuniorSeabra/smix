@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { AdminNav } from '../../../components/AdminNav';
+import { AdminBottomNav } from '../../../components/AdminBottomNav';
 
 type Payment = {
   id: string;
@@ -25,7 +26,7 @@ export default function AdminPagamentosPage() {
   }, []);
 
   return (
-    <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto pb-24">
+    <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto pb-28">
       <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Pagamentos</h1>
         <AdminNav current="/admin/pagamentos" />
@@ -63,6 +64,8 @@ export default function AdminPagamentosPage() {
         ))}
         {payments.length === 0 && <p className="text-smix-muted text-sm">Nenhum pagamento ainda.</p>}
       </div>
+
+      <AdminBottomNav current="/admin/pagamentos" />
     </main>
   );
 }

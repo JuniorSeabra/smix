@@ -1,10 +1,11 @@
 'use client';
 
+// "Arquivos" saiu do menu: o conteúdo passa a entrar exclusivamente pela
+// integração (botão "Sincronizar com o Drive", em /admin/musicas).
 const LINKS = [
   { href: '/admin', label: 'Dashboard' },
   { href: '/admin/artistas', label: 'Artistas' },
   { href: '/admin/musicas', label: 'Músicas' },
-  { href: '/admin/arquivos', label: 'Arquivos' },
   { href: '/admin/usuarios', label: 'Usuários' },
   { href: '/admin/assinaturas', label: 'Assinaturas' },
   { href: '/admin/pagamentos', label: 'Pagamentos' },

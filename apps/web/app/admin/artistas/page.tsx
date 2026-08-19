@@ -3,15 +3,15 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { AdminNav } from '../../../components/AdminNav';
+import { AdminBottomNav } from '../../../components/AdminBottomNav';
 
 type Artist = { id: string; name: string; description: string | null; status: string };
 
+// Cadastro manual de artista foi removido de propósito: os cantores passam a
+// ser criados exclusivamente pela integração (Sincronizar com o Drive, em
+// /admin/musicas), a partir das pastas reais. Esta tela só lista e exclui.
 export default function AdminArtistsPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   async function load() {
     const res = await apiFetch('/artists');
@@ -37,62 +37,20 @@ export default function AdminArtistsPage() {
     load();
   }
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setSaving(true);
-    setMessage(null);
-    try {
-      const res = await apiFetch('/artists', {
-        method: 'POST',
-        body: JSON.stringify({ name: name.trim(), description: description.trim() || undefined }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.message ?? 'Erro ao criar artista');
-      }
-      setName('');
-      setDescription('');
-      setMessage('Artista adicionado com sucesso.');
-      load();
-    } catch (err: any) {
-      setMessage(err.message ?? 'Erro ao criar artista');
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
-    <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto pb-24">
-      <div className="flex items-center justify-between mb-8">
+    <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto pb-28">
+      <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Artistas</h1>
         <AdminNav current="/admin/artistas" />
       </div>
 
-      <form onSubmit={handleCreate} className="rounded-xl2 bg-smix-surface border border-smix-border p-4 flex flex-col gap-3 mb-8 max-w-md">
-        <h2 className="text-sm text-smix-muted">Adicionar novo artista</h2>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Nome do artista"
-          className="rounded-lg bg-smix-bg border border-smix-border px-3 py-2 text-sm outline-none focus:border-smix-accent"
-        />
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Descrição (opcional)"
-          rows={2}
-          className="rounded-lg bg-smix-bg border border-smix-border px-3 py-2 text-sm outline-none focus:border-smix-accent resize-none"
-        />
-        {message && <p className="text-xs text-smix-accent">{message}</p>}
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-lg bg-smix-primary px-4 py-2 text-sm font-medium hover:opacity-90 transition disabled:opacity-50 self-start"
-        >
-          {saving ? 'Salvando...' : 'Adicionar artista'}
-        </button>
-      </form>
+      <p className="text-smix-muted text-sm mb-6">
+        Os cantores são criados automaticamente pelas pastas do Drive — use{' '}
+        <a href="/admin/musicas" className="text-smix-accent hover:underline">
+          Músicas → Sincronizar com o Drive
+        </a>
+        .
+      </p>
 
       <div className="flex flex-col gap-2">
         {artists.map((artist) => (
@@ -111,6 +69,8 @@ export default function AdminArtistsPage() {
         ))}
         {artists.length === 0 && <p className="text-smix-muted text-sm">Nenhum artista cadastrado ainda.</p>}
       </div>
+
+      <AdminBottomNav current="/admin/artistas" />
     </main>
   );
 }

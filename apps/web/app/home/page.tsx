@@ -207,15 +207,19 @@ export default function HomePage() {
       )}
 
       {!query.trim() && (
-        <section className="relative mt-10 mx-5 rounded-xl2 overflow-hidden border border-smix-border">
+        <section className="relative mt-10 mx-5 rounded-xl2 overflow-hidden border border-smix-border bg-smix-surface min-h-[220px] sm:min-h-[260px] md:min-h-[320px] flex items-center">
+          {/* Foto da mesa de som. bg-cover recorta pelo centro em vez de
+              distorcer, então o enquadramento se ajusta sozinho da tela do
+              celular até o desktop. Trocar a foto = trocar o arquivo em
+              public/banner-mesa.jpg, sem mexer aqui. */}
           <div
             className="absolute inset-0 bg-cover bg-center"
-            style={{
-              backgroundImage:
-                "url(https://images.unsplash.com/photo-1483000805330-4eaf0a0d82da?auto=format&fit=crop&w=1200&q=70)",
-            }}
+            style={{ backgroundImage: "url(/banner-mesa.jpg)" }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-smix-bg via-smix-bg/80 to-smix-bg/20" />
+          {/* No celular o texto fica por cima da foto inteira, então o véu é
+              vertical; a partir do md ele vira lateral e libera a direita da
+              imagem, onde está o tablet. */}
+          <div className="absolute inset-0 bg-gradient-to-t from-smix-bg via-smix-bg/75 to-smix-bg/25 md:bg-gradient-to-r md:from-smix-bg md:via-smix-bg/80 md:to-transparent" />
 
           <div className="relative px-6 py-8 md:py-12 max-w-md">
             <span className="text-smix-accent text-xs font-semibold tracking-wide uppercase">
