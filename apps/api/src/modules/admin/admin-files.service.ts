@@ -63,4 +63,51 @@ export class AdminFilesService {
 
     return { artist, song, file: createdFile };
   }
+
+  // Alternativa ao upload direto (que esbarra num limite do Google: conta de
+  // serviço não tem cota própria pra SUBIR arquivo numa pasta pessoal comum —
+  // só ler funciona sem restrição). Aqui o admin sobe o arquivo direto no
+  // Google Drive (pelo app/site do Drive mesmo) dentro da pasta do cantor, e
+  // o S-MIX só LÊ a estrutura de pastas e importa o que ainda não existe.
+  async syncFromDrive() {
+    const folders = await this.googleDriveService.listArtistFolders();
+    let artistsCreated = 0;
+    let songsCreated = 0;
+
+    for (const folder of folders) {
+      let artist = await this.prisma.artist.findFirst({
+        where: { name: { equals: folder.name, mode: 'insensitive' } },
+      });
+      if (!artist) {
+        artist = await this.prisma.artist.create({ data: { name: folder.name } });
+        artistsCreated++;
+      }
+
+      const files = await this.googleDriveService.listFilesInFolder(folder.id);
+      for (const driveFile of files) {
+        const alreadyLinked = await this.prisma.file.findFirst({
+          where: { googleDriveFileId: driveFile.id },
+        });
+        if (alreadyLinked) continue;
+
+        const title = driveFile.name.replace(/\.[^./]+$/, '').trim() || driveFile.name;
+        const song = await this.prisma.song.create({ data: { title, artistId: artist.id } });
+        await this.prisma.file.create({
+          data: {
+            songId: song.id,
+            name: 'Playback completo',
+            type: 'full',
+            googleDriveFileId: driveFile.id,
+          },
+        });
+        songsCreated++;
+      }
+    }
+
+    return {
+      message: `Sincronizado: ${artistsCreated} cantor(es) novo(s), ${songsCreated} música(s) nova(s).`,
+      artistsCreated,
+      songsCreated,
+    };
+  }
 }

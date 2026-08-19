@@ -59,6 +59,14 @@ export class AdminFilesController {
     }
   }
 
+  // Botão "Sincronizar com o Drive" — lê as pastas de cantor e importa pro
+  // banco o que ainda não existe. É a via segura de subir conteúdo (leitura
+  // não esbarra na cota de Service Account que a rota /upload esbarra).
+  @Post('sync-drive')
+  syncDrive() {
+    return this.adminFilesService.syncFromDrive();
+  }
+
   @Post()
   create(@Body() body: { songId: string; name: string; type: string; googleDriveFileId: string; licenseId?: string }) {
     return this.adminFilesService.create(body);
