@@ -9,6 +9,7 @@ const LINKS = [
   { href: '/admin/usuarios', label: 'Usuários' },
   { href: '/admin/assinaturas', label: 'Assinaturas' },
   { href: '/admin/pagamentos', label: 'Pagamentos' },
+  { href: '/admin/chat', label: 'Chat' },
   { href: '/admin/atividade', label: 'Atividade' },
   { href: '/home', label: 'Voltar ao app' },
 ];

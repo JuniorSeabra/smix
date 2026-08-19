@@ -18,7 +18,8 @@ export default function ChatPage() {
       const res = await apiFetch('/chat/conversation');
       if (res.ok) setMessages(await res.json());
     } catch {
-      // backend do chat ainda não implementado — tela funciona vazia por enquanto
+      // Rede fora do ar: mantém na tela o que já foi carregado em vez de
+      // esvaziar a conversa — o próximo ciclo do polling tenta de novo.
     }
   }
 
@@ -54,7 +55,10 @@ export default function ChatPage() {
       <BottomNav />
 
       <div className="px-5 mt-4 flex-1 flex flex-col max-w-sm w-full mx-auto">
-        <h1 className="text-xl font-bold mb-4">Suporte</h1>
+        <h1 className="text-xl font-bold mb-1">Suporte</h1>
+        <p className="text-smix-muted text-xs mb-4">
+          As mensagens ficam guardadas por 48 horas e depois são apagadas automaticamente.
+        </p>
 
         <div className="flex-1 flex flex-col gap-2 overflow-y-auto min-h-[300px]">
           {messages.length === 0 && (

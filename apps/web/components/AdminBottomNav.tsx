@@ -1,13 +1,13 @@
 'use client';
 
-// Navegação inferior do Admin. O "Voltar ao app" do topo (AdminNav) continua
-// existindo — este é um acesso adicional, ao lado do ícone da Casa/Início,
-// pensado pro celular, onde o menu do topo fica longe do polegar.
+// Navegação inferior do Admin, pensada pro celular (o menu do topo fica longe
+// do polegar). "Início" é a própria saída do admin — por isso não existe mais
+// um "Voltar ao app" duplicado aqui, nem "Painel", que só repetia a tela atual.
+// O "Voltar ao app" do topo (AdminNav) continua existindo.
 const ITEMS = [
   { href: '/home', label: 'Início', icon: '🏠' },
-  { href: '/home', label: 'Voltar ao app', icon: '↩️' },
-  { href: '/admin', label: 'Painel', icon: '⚙️' },
   { href: '/admin/musicas', label: 'Músicas', icon: '🎵' },
+  { href: '/admin/chat', label: 'Chat', icon: '💬' },
   { href: '/admin/atividade', label: 'Atividade', icon: '📊' },
 ];
 

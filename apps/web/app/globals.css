@@ -33,12 +33,17 @@ body {
 /* O Safari no iPhone/iPad dá zoom automático ao focar qualquer campo com fonte
    menor que 16px — e não desfaz o zoom ao sair do campo, deixando a interface
    ampliada pra sempre. Forçar 16px no campo em si (só até o breakpoint md,
-   onde o problema não existe) resolve na origem, sem desativar o pinch-zoom. */
+   onde o problema não existe) resolve na origem, sem desativar o pinch-zoom.
+
+   O !important não é enfeite: os campos usam a classe `text-sm` do Tailwind,
+   e classe (0,1,0) vence seletor de elemento (0,0,1). Sem ele esta regra é
+   ignorada em produção e o zoom continua acontecendo — foi o que houve na
+   primeira tentativa desta correção. */
 @media (max-width: 767px) {
   input,
   textarea,
   select {
-    font-size: 16px;
+    font-size: 16px !important;
   }
 }
 

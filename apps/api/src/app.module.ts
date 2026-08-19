@@ -10,6 +10,7 @@ import { GoogleDriveModule } from './modules/google-drive/google-drive.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     AdminModule,
     SubscriptionsModule,
     PaymentsModule,
-    // ChatModule entra na Fase 2 — ver docs/arquitetura.md
+    ChatModule,
   ],
 })
 export class AppModule {}
