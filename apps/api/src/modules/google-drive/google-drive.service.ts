@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { google, drive_v3 } from 'googleapis';
+import * as fs from 'fs';
 import { DriveFileMeta, DriveFileStream } from './interfaces/drive-file.interface';
 
 // Extensões conhecidas dos multitracks (hoje temos .rar e .zip nas pastas reais do Drive,
@@ -26,7 +27,9 @@ export class GoogleDriveService {
     const auth = new google.auth.JWT({
       email,
       key: privateKey,
-      scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+      // Precisa de escrita (não só .readonly) pra criar pasta de artista e
+      // subir arquivo — a pasta S-MIX no Drive foi compartilhada como "Editor".
+      scopes: ['https://www.googleapis.com/auth/drive'],
     });
     this.drive = google.drive({ version: 'v3', auth });
     return this.drive;
@@ -90,6 +93,61 @@ export class GoogleDriveService {
       if (err?.code === 404) throw new NotFoundException('Arquivo não encontrado no Google Drive');
       this.logger.error(`Falha ao buscar metadados do arquivo ${fileId} no Google Drive`, err as Error);
       throw new ServiceUnavailableException('Não foi possível acessar o Google Drive no momento');
+    }
+  }
+
+  // Acha a pasta do cantor dentro da raiz do S-MIX pelo nome (sem diferenciar
+  // maiúscula/acento) e reaproveita ela; só cria uma nova se realmente não existir.
+  // Evita duplicar pasta pro mesmo cantor por causa de "Aline Barros" vs "aline barros".
+  async findOrCreateArtistFolder(artistName: string): Promise<string> {
+    const rootId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
+    if (!rootId) throw new ServiceUnavailableException('GOOGLE_DRIVE_ROOT_FOLDER_ID não configurado');
+
+    const drive = this.getClient();
+    const normalizedTarget = artistName.trim().toLowerCase();
+
+    try {
+      const existing = await this.listChildren(rootId, "mimeType = 'application/vnd.google-apps.folder'");
+      const match = existing.find((folder) => folder.name.trim().toLowerCase() === normalizedTarget);
+      if (match) return match.id;
+
+      const created = await drive.files.create({
+        requestBody: {
+          name: artistName.trim(),
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: [rootId],
+        },
+        fields: 'id',
+        supportsAllDrives: true,
+      });
+      return created.data.id!;
+    } catch (err) {
+      this.logger.error(`Falha ao criar/achar pasta do artista "${artistName}" no Google Drive`, err as Error);
+      throw new ServiceUnavailableException('Não foi possível organizar a pasta do artista no Google Drive');
+    }
+  }
+
+  // Sobe um arquivo de multitrack pra dentro da pasta do artista. Lê de um
+  // arquivo temporário em disco (não da memória) — os arquivos costumam ter
+  // centenas de MB, e bufferizar isso tudo em RAM derrubaria a instância grátis.
+  async uploadFile(folderId: string, fileName: string, tempFilePath: string, mimeType: string): Promise<DriveFileMeta> {
+    try {
+      const drive = this.getClient();
+      const res = await drive.files.create({
+        requestBody: { name: fileName, parents: [folderId] },
+        media: { mimeType, body: fs.createReadStream(tempFilePath) },
+        fields: 'id, name, mimeType, size',
+        supportsAllDrives: true,
+      });
+      return {
+        id: res.data.id!,
+        name: res.data.name!,
+        mimeType: this.guessMimeType(res.data.name!, res.data.mimeType),
+        size: res.data.size ? Number(res.data.size) : null,
+      };
+    } catch (err) {
+      this.logger.error(`Falha ao subir arquivo "${fileName}" pro Google Drive`, err as Error);
+      throw new ServiceUnavailableException('Não foi possível enviar o arquivo para o Google Drive');
     }
   }
 

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { apiFetch } from '../../../lib/api';
+import { useEffect, useRef, useState } from 'react';
+import { apiFetch, getToken } from '../../../lib/api';
 import { AdminNav } from '../../../components/AdminNav';
 
 type Artist = { id: string; name: string };
@@ -10,49 +10,70 @@ type Song = { id: string; title: string; category: string | null; status: string
 export default function AdminMusicasPage() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
+
+  const [artistName, setArtistName] = useState('');
   const [title, setTitle] = useState('');
-  const [artistId, setArtistId] = useState('');
-  const [category, setCategory] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function load() {
     const [songsRes, artistsRes] = await Promise.all([apiFetch('/admin/songs'), apiFetch('/artists')]);
     if (songsRes.ok) setSongs(await songsRes.json());
-    if (artistsRes.ok) {
-      const list = await artistsRes.json();
-      setArtists(list);
-      if (list.length > 0) setArtistId((prev) => prev || list[0].id);
-    }
+    if (artistsRes.ok) setArtists(await artistsRes.json());
   }
 
   useEffect(() => {
     load();
   }, []);
 
-  async function handleCreate(e: React.FormEvent) {
+  function handleVincular(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !artistId) return;
-    setSaving(true);
+    if (!artistName.trim() || !title.trim() || !file) return;
+
+    setUploading(true);
+    setProgress(0);
     setMessage(null);
-    try {
-      const res = await apiFetch('/songs', {
-        method: 'POST',
-        body: JSON.stringify({ title: title.trim(), artistId, category: category.trim() || undefined }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.message ?? 'Erro ao criar música');
+
+    // XMLHttpRequest em vez de fetch porque só ele dá progresso de UPLOAD
+    // (fetch só acompanha progresso de download) — útil pra arquivo grande.
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${process.env.NEXT_PUBLIC_API_URL}/admin/files/upload`);
+    xhr.setRequestHeader('Authorization', `Bearer ${getToken()}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        setProgress(Math.round((event.loaded / event.total) * 100));
       }
-      setTitle('');
-      setCategory('');
-      setMessage('Música adicionada com sucesso.');
-      load();
-    } catch (err: any) {
-      setMessage(err.message ?? 'Erro ao criar música');
-    } finally {
-      setSaving(false);
-    }
+    };
+
+    xhr.onload = () => {
+      setUploading(false);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setMessage({ ok: true, text: `"${title}" vinculada e enviada pro Drive com sucesso.` });
+        setTitle('');
+        setFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        load();
+      } else {
+        const body = JSON.parse(xhr.responseText || '{}');
+        setMessage({ ok: false, text: body?.message ?? 'Erro ao vincular e enviar o arquivo.' });
+      }
+    };
+
+    xhr.onerror = () => {
+      setUploading(false);
+      setMessage({ ok: false, text: 'Erro de rede ao enviar o arquivo.' });
+    };
+
+    const formData = new FormData();
+    formData.append('artistName', artistName.trim());
+    formData.append('title', title.trim());
+    formData.append('file', file);
+    xhr.send(formData);
   }
 
   async function toggleStatus(song: Song) {
@@ -71,37 +92,58 @@ export default function AdminMusicasPage() {
         <AdminNav current="/admin/musicas" />
       </div>
 
-      <form onSubmit={handleCreate} className="rounded-xl2 bg-smix-surface border border-smix-border p-4 flex flex-col gap-3 mb-8 max-w-md">
-        <h2 className="text-sm text-smix-muted">Adicionar nova música</h2>
+      <form onSubmit={handleVincular} className="rounded-xl2 bg-smix-surface border border-smix-border p-4 flex flex-col gap-3 mb-8 max-w-md">
+        <h2 className="text-sm text-smix-muted">Cantor → Música → Arquivo → Vincular</h2>
+        <p className="text-xs text-smix-muted -mt-2">
+          Se o cantor já existir, a música entra na pasta dele no Drive automaticamente. Se não existir, o cantor e a pasta são criados na hora.
+        </p>
+
+        <input
+          list="artist-suggestions"
+          value={artistName}
+          onChange={(e) => setArtistName(e.target.value)}
+          placeholder="Nome do cantor"
+          className="rounded-lg bg-smix-bg border border-smix-border px-3 py-2 text-sm outline-none focus:border-smix-accent"
+        />
+        <datalist id="artist-suggestions">
+          {artists.map((artist) => (
+            <option key={artist.id} value={artist.name} />
+          ))}
+        </datalist>
+
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Título da música"
+          placeholder="Nome da música"
           className="rounded-lg bg-smix-bg border border-smix-border px-3 py-2 text-sm outline-none focus:border-smix-accent"
         />
-        <select
-          value={artistId}
-          onChange={(e) => setArtistId(e.target.value)}
-          className="rounded-lg bg-smix-bg border border-smix-border px-3 py-2 text-sm outline-none focus:border-smix-accent"
-        >
-          {artists.length === 0 && <option value="">Cadastre um artista primeiro</option>}
-          {artists.map((artist) => (
-            <option key={artist.id} value={artist.id}>{artist.name}</option>
-          ))}
-        </select>
+
         <input
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          placeholder="Categoria (opcional)"
-          className="rounded-lg bg-smix-bg border border-smix-border px-3 py-2 text-sm outline-none focus:border-smix-accent"
+          ref={fileInputRef}
+          type="file"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="text-xs text-smix-muted file:mr-3 file:rounded-lg file:border-0 file:bg-smix-primary file:px-3 file:py-2 file:text-xs file:font-medium file:text-white"
         />
-        {message && <p className="text-xs text-smix-accent">{message}</p>}
+
+        {uploading && (
+          <div>
+            <div className="h-1.5 rounded-full bg-smix-bg overflow-hidden">
+              <div className="h-full bg-smix-accent transition-all duration-300" style={{ width: `${progress}%` }} />
+            </div>
+            <p className="text-xs text-smix-muted mt-1">Enviando para o Google Drive... {progress}%</p>
+          </div>
+        )}
+
+        {message && (
+          <p className={`text-xs ${message.ok ? 'text-smix-accent' : 'text-red-400'}`}>{message.text}</p>
+        )}
+
         <button
           type="submit"
-          disabled={saving || !artistId}
+          disabled={uploading || !artistName.trim() || !title.trim() || !file}
           className="rounded-lg bg-smix-primary px-4 py-2 text-sm font-medium hover:opacity-90 transition disabled:opacity-50 self-start"
         >
-          {saving ? 'Salvando...' : 'Adicionar música'}
+          {uploading ? `Enviando... ${progress}%` : 'Vincular'}
         </button>
       </form>
 
