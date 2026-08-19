@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { apiFetch, getToken } from '../../lib/api';
+import { apiFetch, getToken, logout } from '../../lib/api';
 import { Header } from '../../components/Header';
 import { BottomNav } from '../../components/BottomNav';
 
@@ -10,6 +10,7 @@ type Profile = {
   name: string;
   email: string;
   photoUrl: string | null;
+  role: 'USER' | 'ADMIN';
   subscriptions: { status: string; nextBillingDate: string | null }[];
 };
 
@@ -161,6 +162,22 @@ export default function PerfilPage() {
             Salvar
           </button>
         )}
+
+        {profile.role === 'ADMIN' && (
+          <a
+            href="/admin"
+            className="rounded-xl2 bg-smix-surface border border-smix-border py-3 text-center font-medium text-sm hover:border-smix-accent transition"
+          >
+            Painel Admin
+          </a>
+        )}
+
+        <button
+          onClick={logout}
+          className="rounded-xl2 border border-red-900 text-red-400 py-3 font-medium text-sm hover:bg-red-950/30 transition"
+        >
+          Sair
+        </button>
       </div>
     </main>
   );

@@ -3,6 +3,12 @@ export function getToken() {
   return localStorage.getItem('smix_access_token');
 }
 
+export function logout() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('smix_access_token');
+  window.location.href = '/';
+}
+
 export async function apiFetch(path: string, init: RequestInit = {}) {
   const token = getToken();
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
