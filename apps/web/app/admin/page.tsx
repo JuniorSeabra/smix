@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import { AdminNav } from '../../components/AdminNav';
 
 type Dashboard = {
   totalUsers: number;
@@ -57,14 +58,7 @@ export default function AdminDashboardPage() {
     <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold">Painel Admin — S-MIX</h1>
-        <nav className="flex gap-4 text-sm text-smix-muted">
-          <a href="/admin" className="text-smix-text">Dashboard</a>
-          <a href="/admin/artistas" className="hover:text-smix-text transition">Artistas</a>
-          <a href="/admin/musicas" className="hover:text-smix-text transition">Músicas</a>
-          <a href="/admin/arquivos" className="hover:text-smix-text transition">Arquivos</a>
-          <a href="/admin/usuarios" className="hover:text-smix-text transition">Usuários</a>
-          <a href="/home" className="hover:text-smix-text transition">Voltar ao app</a>
-        </nav>
+        <AdminNav current="/admin" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

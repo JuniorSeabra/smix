@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
+import { AdminNav } from '../../../components/AdminNav';
 
 type Artist = { id: string; name: string };
 type Song = { id: string; title: string; category: string | null; status: string; artist: { name: string } };
@@ -67,13 +68,7 @@ export default function AdminMusicasPage() {
     <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto pb-24">
       <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Músicas</h1>
-        <nav className="flex gap-4 text-sm text-smix-muted">
-          <a href="/admin" className="hover:text-smix-text transition">Dashboard</a>
-          <a href="/admin/artistas" className="hover:text-smix-text transition">Artistas</a>
-          <a href="/admin/musicas" className="text-smix-text">Músicas</a>
-          <a href="/admin/arquivos" className="hover:text-smix-text transition">Arquivos</a>
-          <a href="/admin/usuarios" className="hover:text-smix-text transition">Usuários</a>
-        </nav>
+        <AdminNav current="/admin/musicas" />
       </div>
 
       <form onSubmit={handleCreate} className="rounded-xl2 bg-smix-surface border border-smix-border p-4 flex flex-col gap-3 mb-8 max-w-md">

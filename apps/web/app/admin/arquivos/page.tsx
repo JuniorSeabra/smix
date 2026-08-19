@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
+import { AdminNav } from '../../../components/AdminNav';
 
 type Song = { id: string; title: string; artist: { name: string } };
 type License = { id: string; name: string; type: string };
@@ -137,13 +138,7 @@ export default function AdminArquivosPage() {
     <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto pb-24">
       <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Arquivos & Licenças</h1>
-        <nav className="flex gap-4 text-sm text-smix-muted">
-          <a href="/admin" className="hover:text-smix-text transition">Dashboard</a>
-          <a href="/admin/artistas" className="hover:text-smix-text transition">Artistas</a>
-          <a href="/admin/musicas" className="hover:text-smix-text transition">Músicas</a>
-          <a href="/admin/arquivos" className="text-smix-text">Arquivos</a>
-          <a href="/admin/usuarios" className="hover:text-smix-text transition">Usuários</a>
-        </nav>
+        <AdminNav current="/admin/arquivos" />
       </div>
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">

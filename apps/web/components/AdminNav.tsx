@@ -9,6 +9,7 @@ const LINKS = [
   { href: '/admin/assinaturas', label: 'Assinaturas' },
   { href: '/admin/pagamentos', label: 'Pagamentos' },
   { href: '/admin/atividade', label: 'Atividade' },
+  { href: '/home', label: 'Voltar ao app' },
 ];
 
 export function AdminNav({ current }: { current: string }) {

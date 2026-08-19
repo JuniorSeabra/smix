@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
+import { AdminNav } from '../../../components/AdminNav';
 
 type UserRow = { id: string; name: string; email: string; role: 'USER' | 'ADMIN'; status: 'ACTIVE' | 'INACTIVE' };
 
@@ -60,13 +61,7 @@ export default function AdminUsersPage() {
     <main className="min-h-screen px-6 py-8 max-w-4xl mx-auto pb-24">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold">Usuários</h1>
-        <nav className="flex gap-4 text-sm text-smix-muted">
-          <a href="/admin" className="hover:text-smix-text transition">Dashboard</a>
-          <a href="/admin/artistas" className="hover:text-smix-text transition">Artistas</a>
-          <a href="/admin/musicas" className="hover:text-smix-text transition">Músicas</a>
-          <a href="/admin/arquivos" className="hover:text-smix-text transition">Arquivos</a>
-          <a href="/admin/usuarios" className="text-smix-text">Usuários</a>
-        </nav>
+        <AdminNav current="/admin/usuarios" />
       </div>
 
       <input
