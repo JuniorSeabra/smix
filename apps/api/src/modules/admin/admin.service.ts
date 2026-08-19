@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -69,6 +69,36 @@ export class AdminService {
       updateData.passwordHash = bcrypt.hashSync(newPassword, 12);
     }
     return this.prisma.user.update({ where: { id }, data: updateData });
+  }
+
+  // Apaga o usuário de verdade (não é o "Desativar", que só marca status =
+  // INACTIVE). Precisa apagar tudo que referencia esse usuário primeiro, na
+  // ordem certa, senão o banco recusa por violar chave estrangeira.
+  async deleteUser(id: string, actingAdminId: string) {
+    if (id === actingAdminId) {
+      throw new BadRequestException('Você não pode excluir a própria conta enquanto estiver logado como ela');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    const messages = await this.prisma.message.findMany({ where: { senderId: id }, select: { id: true } });
+    const messageIds = messages.map((m) => m.id);
+
+    await this.prisma.$transaction([
+      this.prisma.messageRead.deleteMany({ where: { OR: [{ userId: id }, { messageId: { in: messageIds } }] } }),
+      this.prisma.message.deleteMany({ where: { senderId: id } }),
+      this.prisma.conversationParticipant.deleteMany({ where: { userId: id } }),
+      this.prisma.downloadLog.deleteMany({ where: { userId: id } }),
+      this.prisma.payment.deleteMany({ where: { userId: id } }),
+      this.prisma.subscription.deleteMany({ where: { userId: id } }),
+      this.prisma.auditLog.deleteMany({ where: { adminId: id } }),
+      this.prisma.user.delete({ where: { id } }),
+    ]);
+
+    return { message: `Usuário ${user.email} excluído definitivamente.` };
   }
 
   listSubscriptions() {

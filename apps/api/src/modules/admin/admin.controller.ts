@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -31,6 +31,11 @@ export class AdminController {
     const result = await this.adminService.updateUser(id, body);
     await this.adminService.recordAudit(req.user.userId, 'update_user', 'User', id);
     return result;
+  }
+
+  @Delete('users/:id')
+  deleteUser(@Param('id') id: string, @Req() req: any) {
+    return this.adminService.deleteUser(id, req.user.userId);
   }
 
   @Get('songs')

@@ -9,11 +9,13 @@ type UserRow = { id: string; name: string; email: string; role: 'USER' | 'ADMIN'
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function load() {
     const res = await apiFetch(`/admin/users${search ? `?search=${encodeURIComponent(search)}` : ''}`);
@@ -32,10 +34,34 @@ export default function AdminUsersPage() {
   }
 
   async function toggleStatus(user: UserRow) {
+    // "Desativar" tira o acesso na hora (o backend confere o status em toda
+    // requisição), não é só um rótulo — o usuário é derrubado mesmo já logado.
     const newStatus = user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     await apiFetch(`/admin/users/${user.id}`, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
     load();
   }
+
+  async function handleDelete(user: UserRow) {
+    const confirmed = window.confirm(
+      `Excluir ${user.name} (${user.email}) definitivamente? Isso apaga a conta do banco de dados — não é reversível, e a pessoa precisaria se cadastrar de novo do zero.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingId(user.id);
+    try {
+      const res = await apiFetch(`/admin/users/${user.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        alert(body?.message ?? 'Não foi possível excluir este usuário.');
+        return;
+      }
+      load();
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  const visibleUsers = users.filter((u) => u.status === tab);
 
   function startEdit(user: UserRow) {
     setEditingId(user.id);
@@ -69,11 +95,30 @@ export default function AdminUsersPage() {
         placeholder="Buscar por nome ou e-mail..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="w-full rounded-xl2 bg-smix-surface border border-smix-border px-4 py-3 text-sm outline-none focus:border-smix-accent transition mb-6"
+        className="w-full rounded-xl2 bg-smix-surface border border-smix-border px-4 py-3 text-sm outline-none focus:border-smix-accent transition mb-4"
       />
 
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setTab('ACTIVE')}
+          className={`rounded-lg px-4 py-2 text-sm border ${
+            tab === 'ACTIVE' ? 'border-smix-accent text-smix-accent' : 'border-smix-border text-smix-muted'
+          }`}
+        >
+          Ativos ({users.filter((u) => u.status === 'ACTIVE').length})
+        </button>
+        <button
+          onClick={() => setTab('INACTIVE')}
+          className={`rounded-lg px-4 py-2 text-sm border ${
+            tab === 'INACTIVE' ? 'border-smix-accent text-smix-accent' : 'border-smix-border text-smix-muted'
+          }`}
+        >
+          Inativos ({users.filter((u) => u.status === 'INACTIVE').length})
+        </button>
+      </div>
+
       <div className="flex flex-col gap-2">
-        {users.map((user) => (
+        {visibleUsers.map((user) => (
           <div key={user.id} className="rounded-xl2 bg-smix-surface border border-smix-border px-4 py-3 text-sm">
             {editingId === user.id ? (
               <div className="flex flex-col gap-2">
@@ -142,12 +187,23 @@ export default function AdminUsersPage() {
                   <button onClick={() => toggleStatus(user)} className="text-xs text-smix-muted hover:underline">
                     {user.status === 'ACTIVE' ? 'Desativar' : 'Ativar'}
                   </button>
+                  <button
+                    onClick={() => handleDelete(user)}
+                    disabled={deletingId === user.id}
+                    className="text-xs text-red-400 hover:underline disabled:opacity-50"
+                  >
+                    {deletingId === user.id ? 'Excluindo...' : 'Excluir'}
+                  </button>
                 </div>
               </div>
             )}
           </div>
         ))}
-        {users.length === 0 && <p className="text-smix-muted text-sm">Nenhum usuário encontrado.</p>}
+        {visibleUsers.length === 0 && (
+          <p className="text-smix-muted text-sm">
+            {tab === 'ACTIVE' ? 'Nenhum usuário ativo encontrado.' : 'Nenhum usuário inativo encontrado.'}
+          </p>
+        )}
       </div>
     </main>
   );
