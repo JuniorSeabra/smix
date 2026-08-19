@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, logout } from '../lib/api';
 import { TabletMultitrackIcon } from './TabletMultitrackIcon';
 
 export function Header() {
@@ -23,15 +23,28 @@ export function Header() {
         </span>
         <TabletMultitrackIcon className="w-8 h-auto" />
       </a>
-      <a href="/perfil" className="justify-self-end flex flex-col items-center gap-1">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-smix-primary to-smix-accent overflow-hidden">
-          {photoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photoUrl} alt="Perfil" className="w-full h-full object-cover" />
-          )}
-        </div>
-        <span className="text-[10px] text-smix-muted">⚙</span>
-      </a>
+      <div className="justify-self-end flex items-center gap-3">
+        <a href="/perfil" className="flex flex-col items-center gap-1">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-smix-primary to-smix-accent overflow-hidden">
+            {photoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoUrl} alt="Perfil" className="w-full h-full object-cover" />
+            )}
+          </div>
+          <span className="text-[10px] text-smix-muted">⚙</span>
+        </a>
+        {/* Sempre visível, mesmo que o resto da página não carregue —
+            nunca deixa o usuário preso sem conseguir sair da conta. */}
+        <button
+          type="button"
+          onClick={logout}
+          aria-label="Sair da conta"
+          title="Sair"
+          className="text-smix-muted hover:text-red-400 transition text-lg leading-none"
+        >
+          ⏻
+        </button>
+      </div>
     </header>
   );
 }
