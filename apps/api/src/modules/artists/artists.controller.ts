@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -16,8 +16,10 @@ export class ArtistsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.artistsService.findOneWithSongs(id);
+  async findOne(@Param('id') id: string) {
+    const artist = await this.artistsService.findOneWithSongs(id);
+    if (!artist) throw new NotFoundException('Artista não encontrado');
+    return artist;
   }
 
   // Rotas administrativas — exigem JWT válido E role ADMIN.

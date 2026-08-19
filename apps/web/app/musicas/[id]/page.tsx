@@ -19,14 +19,26 @@ type SongDetail = {
 export default function SongPage() {
   const params = useParams<{ id: string }>();
   const [song, setSong] = useState<SongDetail | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'not-found' | 'error'>('loading');
   const [downloadState, setDownloadState] = useState<Record<string, 'idle' | 'loading' | 'error'>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    setStatus('loading');
     apiFetch(`/songs/${params.id}`)
-      .then((res) => res.json())
-      .then(setSong)
-      .catch(() => setSong(null));
+      .then(async (res) => {
+        if (res.status === 404) {
+          setStatus('not-found');
+          return;
+        }
+        if (!res.ok) {
+          setStatus('error');
+          return;
+        }
+        setSong(await res.json());
+        setStatus('ready');
+      })
+      .catch(() => setStatus('error'));
   }, [params.id]);
 
   async function handleDownload(fileId: string) {
@@ -63,11 +75,27 @@ export default function SongPage() {
     }
   }
 
-  if (!song) {
+  if (status === 'loading') {
     return (
       <main className="min-h-screen">
         <Header />
         <p className="px-5 text-smix-muted">Carregando...</p>
+      </main>
+    );
+  }
+
+  if (status === 'not-found' || status === 'error' || !song) {
+    return (
+      <main className="min-h-screen">
+        <Header />
+        <div className="px-5 mt-8 flex flex-col items-center gap-3 text-center">
+          <p className="text-smix-muted">
+            {status === 'not-found' ? 'Música não encontrada.' : 'Não foi possível carregar esta música.'}
+          </p>
+          <a href="/home" className="text-smix-accent text-sm hover:underline">
+            Voltar para a home
+          </a>
+        </div>
       </main>
     );
   }

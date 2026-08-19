@@ -12,19 +12,47 @@ type ArtistDetail = { id: string; name: string; photoUrl: string | null; songs: 
 export default function ArtistPage() {
   const params = useParams<{ id: string }>();
   const [artist, setArtist] = useState<ArtistDetail | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'not-found' | 'error'>('loading');
 
   useEffect(() => {
+    setStatus('loading');
     apiFetch(`/artists/${params.id}`)
-      .then((res) => res.json())
-      .then(setArtist)
-      .catch(() => setArtist(null));
+      .then(async (res) => {
+        if (res.status === 404) {
+          setStatus('not-found');
+          return;
+        }
+        if (!res.ok) {
+          setStatus('error');
+          return;
+        }
+        setArtist(await res.json());
+        setStatus('ready');
+      })
+      .catch(() => setStatus('error'));
   }, [params.id]);
 
-  if (!artist) {
+  if (status === 'loading') {
     return (
       <main className="min-h-screen">
         <Header />
         <p className="px-5 text-smix-muted">Carregando...</p>
+      </main>
+    );
+  }
+
+  if (status === 'not-found' || status === 'error' || !artist) {
+    return (
+      <main className="min-h-screen">
+        <Header />
+        <div className="px-5 mt-8 flex flex-col items-center gap-3 text-center">
+          <p className="text-smix-muted">
+            {status === 'not-found' ? 'Artista não encontrado.' : 'Não foi possível carregar este artista.'}
+          </p>
+          <a href="/home" className="text-smix-accent text-sm hover:underline">
+            Voltar para a home
+          </a>
+        </div>
       </main>
     );
   }

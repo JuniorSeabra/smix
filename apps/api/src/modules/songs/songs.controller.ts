@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -15,8 +15,10 @@ export class SongsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.songsService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    const song = await this.songsService.findOne(id);
+    if (!song) throw new NotFoundException('Música não encontrada');
+    return song;
   }
 
   @Post()

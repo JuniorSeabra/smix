@@ -10,17 +10,6 @@ import { InstrumentBackdrop } from '../../components/InstrumentBackdrop';
 type Artist = { id: string; name: string; photoUrl: string | null };
 type SongResult = { id: string; title: string; artist: { name: string } };
 
-const FALLBACK_NAMES = [
-  'Aline Barros', 'Gabriela Rocha', 'Fernandinho', 'Isadora Pompeo',
-  'Anderson Freire', 'Bruna Karla', 'Thalles Roberto', 'Isaias Saad',
-  'Fernanda Brum', 'Cassiane', 'Julliany Souza', 'Gabriel Guedes',
-];
-const FALLBACK_ARTISTS: Artist[] = FALLBACK_NAMES.map((name, i) => ({
-  id: `fallback-${i}`,
-  name,
-  photoUrl: null,
-}));
-
 function initials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 }
@@ -80,10 +69,12 @@ export default function HomePage() {
   }
 
   useEffect(() => {
+    // Só mostra cantor se estiver de verdade cadastrado no banco pelo admin —
+    // nunca inventa nome de exemplo. Ver /admin/artistas para cadastrar.
     apiFetch('/artists')
       .then((res) => res.json())
-      .then((data) => setArtists(Array.isArray(data) && data.length > 0 ? data : FALLBACK_ARTISTS))
-      .catch(() => setArtists(FALLBACK_ARTISTS));
+      .then((data) => setArtists(Array.isArray(data) ? data : []))
+      .catch(() => setArtists([]));
   }, []);
 
   useEffect(() => {
@@ -142,8 +133,15 @@ export default function HomePage() {
           <InstrumentBackdrop />
           <h2 className="px-5 text-sm text-smix-muted mb-3">Artistas</h2>
 
+          {artists.length === 0 && (
+            <p className="px-5 text-smix-muted text-sm">
+              Nenhum cantor cadastrado ainda — vá em Painel Admin → Artistas para adicionar.
+            </p>
+          )}
+
           {/* Mobile/tablet: ~5 visíveis por vez, arraste com o dedo. Desktop: ~8 visíveis,
               arraste com o mouse ou use as setas. */}
+          {artists.length > 0 && (
           <div className="relative group/carousel">
             <div
               ref={scrollerRef}
@@ -202,6 +200,7 @@ export default function HomePage() {
               ›
             </button>
           </div>
+          )}
         </section>
       )}
 
