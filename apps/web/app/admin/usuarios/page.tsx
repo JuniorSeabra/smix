@@ -18,6 +18,17 @@ export default function AdminUsersPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Cadastro de usuário pelo painel. Com o cadastro público fechado, é por aqui
+  // que alguém entra na plataforma.
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newIsAdmin, setNewIsAdmin] = useState(false);
+  const [newActivate, setNewActivate] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
   async function load() {
     const res = await apiFetch(`/admin/users${search ? `?search=${encodeURIComponent(search)}` : ''}`);
     if (res.ok) setUsers(await res.json());
@@ -27,6 +38,46 @@ export default function AdminUsersPage() {
     const timeout = setTimeout(load, 300);
     return () => clearTimeout(timeout);
   }, [search]);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setCreateError(null);
+    setCreating(true);
+    try {
+      const res = await apiFetch('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: newName.trim(),
+          email: newEmail.trim(),
+          password: newPassword,
+          role: newIsAdmin ? 'ADMIN' : 'USER',
+          activateSubscription: newActivate,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        // A mensagem do backend é a útil aqui: e-mail repetido, senha curta etc.
+        const message = Array.isArray(body?.message) ? body.message.join(', ') : body?.message;
+        setCreateError(message ?? 'Não foi possível cadastrar este usuário.');
+        return;
+      }
+
+      setNewName('');
+      setNewEmail('');
+      setNewPassword('');
+      setNewIsAdmin(false);
+      setNewActivate(true);
+      setShowCreate(false);
+      // Volta pra aba de ativos: o usuário recém-criado nasce ACTIVE e é lá que
+      // ele aparece — sem isso, cadastrar estando na aba "Inativos" dá a
+      // impressão de que nada aconteceu.
+      setTab('ACTIVE');
+      load();
+    } finally {
+      setCreating(false);
+    }
+  }
 
   async function toggleRole(user: UserRow) {
     const newRole = user.role === 'ADMIN' ? 'USER' : 'ADMIN';
@@ -90,6 +141,80 @@ export default function AdminUsersPage() {
         <h1 className="text-2xl font-bold">Usuários</h1>
         <AdminNav current="/admin/usuarios" />
       </div>
+
+      {showCreate ? (
+        <form onSubmit={handleCreate} className="rounded-xl2 bg-smix-surface border border-smix-border px-4 py-4 mb-4 flex flex-col gap-2">
+          <p className="text-sm font-medium mb-1">Cadastrar usuário</p>
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Nome"
+            required
+            minLength={2}
+            className="rounded-lg bg-smix-bg border border-smix-border px-3 py-2 text-sm outline-none focus:border-smix-accent"
+          />
+          <input
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            placeholder="E-mail"
+            type="email"
+            required
+            className="rounded-lg bg-smix-bg border border-smix-border px-3 py-2 text-sm outline-none focus:border-smix-accent"
+          />
+          <input
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Senha (mínimo 8 caracteres)"
+            type="text"
+            required
+            minLength={8}
+            className="rounded-lg bg-smix-bg border border-smix-border px-3 py-2 text-sm outline-none focus:border-smix-accent"
+          />
+          {/* A senha fica visível de propósito: quem cadastra é o admin e
+              precisa anotar pra passar pra pessoa. */}
+          <p className="text-smix-muted text-xs">
+            Anote a senha — ela não aparece de novo depois de salvar.
+          </p>
+
+          <label className="flex items-center gap-2 text-xs text-smix-muted mt-1">
+            <input type="checkbox" checked={newActivate} onChange={(e) => setNewActivate(e.target.checked)} />
+            Liberar acesso ao catálogo (cria a assinatura já ativa)
+          </label>
+          <label className="flex items-center gap-2 text-xs text-smix-muted">
+            <input type="checkbox" checked={newIsAdmin} onChange={(e) => setNewIsAdmin(e.target.checked)} />
+            Tornar administrador
+          </label>
+
+          {createError && <p className="text-red-400 text-xs mt-1">{createError}</p>}
+
+          <div className="flex gap-2 mt-2">
+            <button
+              type="submit"
+              disabled={creating}
+              className="rounded-lg bg-smix-primary px-4 py-2 text-xs font-medium hover:opacity-90 transition disabled:opacity-50"
+            >
+              {creating ? 'Cadastrando...' : 'Cadastrar'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowCreate(false);
+                setCreateError(null);
+              }}
+              className="rounded-lg border border-smix-border px-4 py-2 text-xs text-smix-muted hover:text-smix-text transition"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          onClick={() => setShowCreate(true)}
+          className="w-full rounded-xl2 border border-dashed border-smix-border px-4 py-3 text-sm text-smix-muted hover:border-smix-accent hover:text-smix-accent transition mb-4"
+        >
+          + Cadastrar usuário
+        </button>
+      )}
 
       <input
         type="search"

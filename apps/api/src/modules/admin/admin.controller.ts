@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminService } from './admin.service';
+import { CreateUserDto } from './dto/create-user.dto';
 
 // Todo o controller exige login + role ADMIN, verificado no backend.
 @Controller('admin')
@@ -21,6 +22,13 @@ export class AdminController {
   @Get('stats')
   getStats() {
     return this.adminService.getStats();
+  }
+
+  @Post('users')
+  async createUser(@Body() dto: CreateUserDto, @Req() req: any) {
+    const user = await this.adminService.createUser(dto);
+    await this.adminService.recordAudit(req.user.userId, 'create_user', 'User', user.id);
+    return user;
   }
 
   @Get('users')

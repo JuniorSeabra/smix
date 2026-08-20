@@ -1,10 +1,11 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { processProfilePhoto } from '../../common/utils/profile-photo';
+import { isPublicSignupEnabled } from '../../common/config/features';
 
 const SALT_ROUNDS = 12;
 
@@ -16,6 +17,13 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto, photo?: Express.Multer.File) {
+    // Fechado por padrão: quem cria conta é o admin, pelo painel. A checagem é
+    // aqui e não só no frontend — esconder o botão "Criar Login" não impede
+    // ninguém de chamar POST /auth/register direto.
+    if (!isPublicSignupEnabled()) {
+      throw new ForbiddenException('O cadastro é feito pelo administrador. Fale com a equipe do S-MIX.');
+    }
+
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
       throw new ConflictException('E-mail já cadastrado');

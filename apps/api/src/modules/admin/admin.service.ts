@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
 export class AdminService {
@@ -48,6 +49,49 @@ export class AdminService {
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
+  }
+
+  // Cria um usuário pelo painel. Com o cadastro público fechado
+  // (PUBLIC_SIGNUP_ENABLED=false) esta é a única porta de entrada da plataforma.
+  //
+  // activateSubscription já cria a assinatura ACTIVE junto: sem ela o usuário
+  // loga mas leva 403 no primeiro download, porque FilesService continua exigindo
+  // assinatura ativa. É o caminho pra liberar alguém na mão enquanto o gateway
+  // de pagamento não está ligado de verdade.
+  async createUser(dto: CreateUserDto) {
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) {
+      throw new ConflictException('E-mail já cadastrado');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+
+    const user = await this.prisma.user.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        passwordHash,
+        role: dto.role ?? 'USER',
+      },
+      select: { id: true, name: true, email: true, role: true, status: true, createdAt: true },
+    });
+
+    if (dto.activateSubscription) {
+      await this.prisma.subscription.create({
+        data: {
+          userId: user.id,
+          // "manual" é o mesmo valor que PAYMENT_GATEWAY usa quando não há
+          // cobrança real ligada — deixa claro no histórico que essa assinatura
+          // foi liberada pelo admin, não paga por um gateway.
+          gateway: 'manual',
+          status: 'ACTIVE',
+          amount: process.env.SUBSCRIPTION_AMOUNT ?? '40.00',
+          periodicity: process.env.SUBSCRIPTION_PERIODICITY ?? 'monthly',
+        },
+      });
+    }
+
+    return user;
   }
 
   listUsers(search?: string) {

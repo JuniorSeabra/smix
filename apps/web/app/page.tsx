@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BandSilhouette } from '../components/BandSilhouette';
 import { TabletMultitrackIcon } from '../components/TabletMultitrackIcon';
 
@@ -22,6 +22,18 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(-1);
+
+  // Se o cadastro público está fechado (o padrão hoje — quem cria conta é o
+  // admin), o link "Criar Login" nem aparece. Começa como null pra não piscar
+  // o link na tela antes de o backend responder.
+  const [publicSignup, setPublicSignup] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/config`)
+      .then((res) => (res.ok ? res.json() : { publicSignupEnabled: false }))
+      .then((cfg) => setPublicSignup(!!cfg.publicSignupEnabled))
+      .catch(() => setPublicSignup(false));
+  }, []);
 
   const progress = step >= 0 ? STEPS[step].percent : 0;
 
@@ -124,9 +136,11 @@ export default function LoginPage() {
         </form>
 
         <div className="flex flex-col items-center gap-2 text-sm">
-          <a href="/cadastro" className="text-smix-accent hover:underline">
-            Criar Login
-          </a>
+          {publicSignup && (
+            <a href="/cadastro" className="text-smix-accent hover:underline">
+              Criar Login
+            </a>
+          )}
           <a href="/recuperar-senha" className="text-smix-muted hover:underline">
             Esqueci minha senha
           </a>

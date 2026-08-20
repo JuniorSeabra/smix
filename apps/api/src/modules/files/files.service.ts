@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GoogleDriveService } from '../google-drive/google-drive.service';
+import { isSubscriptionRequired } from '../../common/config/features';
 
 // Quanto tempo a liberação no Drive fica de pé. Precisa cobrir o download
 // inteiro de um multitrack de centenas de MB numa conexão de celular — revogar
@@ -26,6 +27,11 @@ export class FilesService {
   // Verifica se o usuário tem assinatura ativa antes de qualquer acesso a arquivo.
   // Chamado sempre no backend — nunca confiar em uma checagem feita só no frontend.
   private async hasActiveSubscription(userId: string): Promise<boolean> {
+    // Enquanto a plataforma está em teste e o gateway não cobra de verdade, dá
+    // pra liberar geral com REQUIRE_SUBSCRIPTION=false. Ligado (padrão) o
+    // catálogo continua fechado pra quem não tem assinatura ativa.
+    if (!isSubscriptionRequired()) return true;
+
     const subscription = await this.prisma.subscription.findFirst({
       where: { userId, status: 'ACTIVE' },
     });
