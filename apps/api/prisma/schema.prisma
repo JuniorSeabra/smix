@@ -225,3 +225,18 @@ model AuditLog {
 
   admin     User     @relation(fields: [adminId], references: [id])
 }
+
+// Liberação temporária de um arquivo do Drive para download direto.
+// O download não passa mais pelo servidor (a banda do plano grátis não aguenta
+// multitracks de centenas de MB), então o arquivo precisa ficar público no Drive
+// enquanto o músico baixa. Cada linha aqui é uma liberação viva, com hora pra
+// morrer — quem revoga é o sweep em FilesService.revokeExpiredShares().
+model DriveShare {
+  id                String   @id @default(uuid())
+  googleDriveFileId String
+  permissionId      String
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+
+  @@index([expiresAt])
+}

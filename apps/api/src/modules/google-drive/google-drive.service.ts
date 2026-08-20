@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { google, drive_v3 } from 'googleapis';
 import * as fs from 'fs';
-import { DriveFileMeta, DriveFileStream } from './interfaces/drive-file.interface';
+import { DriveFileMeta } from './interfaces/drive-file.interface';
 
 // Extensões conhecidas dos multitracks (hoje temos .rar e .zip nas pastas reais do Drive,
 // não só .rar como uma versão anterior da spec assumia).
@@ -151,20 +151,57 @@ export class GoogleDriveService {
     }
   }
 
-  // Stream do conteúdo — o backend faz proxy do arquivo, nunca expõe um link direto do Drive.
-  async getFileStream(fileId: string): Promise<DriveFileStream> {
-    const meta = await this.getFileMeta(fileId);
+  // Link de download direto do arquivo.
+  //
+  // Tem que ser drive.usercontent.google.com, não o antigo drive.google.com/uc:
+  // o /uc responde 303 pro usercontent e descarta o confirm=t no caminho, e sem
+  // esse parâmetro o Drive devolve a página "não foi possível verificar se há
+  // vírus" em vez do arquivo — o que acontece com qualquer arquivo acima de
+  // ~100MB, ou seja, com todos os nossos multitracks. (Verificado em 20/08/2026.)
+  buildDownloadUrl(fileId: string): string {
+    return `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
+  }
+
+  // Libera o arquivo pra download direto e devolve o link do Google.
+  //
+  // Por que não fazemos mais proxy (o que este método fazia antes): cada byte do
+  // multitrack passava pelo servidor, e 6 downloads de 800MB já estouram os 5GB
+  // mensais do plano grátis — foi exatamente o que suspendeu a API em 20/08/2026.
+  // Mandando o músico direto pro Drive, o tráfego não encosta no nosso host.
+  //
+  // O Drive não tem link assinado com validade (como S3/R2 têm), então a única
+  // forma de liberar é marcar o arquivo como público. Pra isso não virar um
+  // vazamento permanente do catálogo pago, a permissão criada aqui é revogada
+  // minutos depois por revokePublicAccess() — quem chama guarda o permissionId.
+  async grantTemporaryPublicAccess(fileId: string): Promise<{ permissionId: string; downloadUrl: string }> {
     try {
       const drive = this.getClient();
-      const res = await drive.files.get(
-        { fileId, alt: 'media', supportsAllDrives: true },
-        { responseType: 'stream' },
-      );
-      return { stream: res.data as unknown as NodeJS.ReadableStream, name: meta.name, mimeType: meta.mimeType, size: meta.size };
+      const permission = await drive.permissions.create({
+        fileId,
+        requestBody: { role: 'reader', type: 'anyone' },
+        fields: 'id',
+        supportsAllDrives: true,
+      });
+      return { permissionId: permission.data.id!, downloadUrl: this.buildDownloadUrl(fileId) };
     } catch (err: any) {
       if (err?.code === 404) throw new NotFoundException('Arquivo não encontrado no Google Drive');
-      this.logger.error(`Falha ao baixar arquivo ${fileId} do Google Drive`, err as Error);
-      throw new ServiceUnavailableException('Não foi possível acessar o Google Drive no momento');
+      this.logger.error(`Falha ao liberar acesso temporário ao arquivo ${fileId}`, err as Error);
+      throw new ServiceUnavailableException('Não foi possível liberar o download no momento');
+    }
+  }
+
+  // Fecha uma liberação. Nunca lança: é chamado em lote pelo sweep de limpeza, e
+  // uma permissão que já sumiu (404) ou um arquivo apagado no Drive não podem
+  // impedir a revogação das outras liberações da mesma leva.
+  async revokePublicAccess(fileId: string, permissionId: string): Promise<boolean> {
+    try {
+      const drive = this.getClient();
+      await drive.permissions.delete({ fileId, permissionId, supportsAllDrives: true });
+      return true;
+    } catch (err: any) {
+      if (err?.code === 404) return true; // já não existe — o acesso está fechado, que é o objetivo
+      this.logger.error(`Falha ao revogar permissão ${permissionId} do arquivo ${fileId}`, err as Error);
+      return false;
     }
   }
 }

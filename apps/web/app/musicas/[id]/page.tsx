@@ -21,7 +21,6 @@ export default function SongPage() {
   const [song, setSong] = useState<SongDetail | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'not-found' | 'error'>('loading');
   const [downloadState, setDownloadState] = useState<Record<string, 'idle' | 'loading' | 'error'>>({});
-  const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,10 +41,15 @@ export default function SongPage() {
       .catch(() => setStatus('error'));
   }, [params.id]);
 
+  // O backend não entrega mais os bytes do arquivo, só um link temporário do
+  // Drive — então aqui não há mais o que medir: quem baixa é o próprio
+  // navegador, com a barra de progresso nativa dele. A versão anterior lia o
+  // corpo em pedaços pra montar um Blob, o que além de gastar a banda do
+  // servidor ainda carregava um multitrack de centenas de MB inteiro na memória
+  // do celular antes de salvar.
   async function handleDownload(fileId: string) {
     setErrorMsg(null);
     setDownloadState((prev) => ({ ...prev, [fileId]: 'loading' }));
-    setDownloadProgress((prev) => ({ ...prev, [fileId]: 0 }));
     try {
       const res = await apiFetch(`/files/${fileId}/download`);
       if (res.status === 403) {
@@ -55,39 +59,13 @@ export default function SongPage() {
         throw new Error('Não foi possível iniciar o download.');
       }
 
-      const disposition = res.headers.get('Content-Disposition') ?? '';
-      const match = /filename="?([^"]+)"?/.exec(disposition);
-      const fileName = match ? decodeURIComponent(match[1]) : 'download';
-      const totalSize = Number(res.headers.get('Content-Length') ?? 0);
+      const { url } = await res.json();
+      if (!url) throw new Error('Não foi possível iniciar o download.');
 
-      // Lê o corpo em pedaços pra atualizar uma barra de progresso real —
-      // arquivo de multitrack costuma ter centenas de MB, e sem isso o
-      // download parece travado por 1-2 minutos sem nenhum feedback.
-      const reader = res.body?.getReader();
-      const chunks: Uint8Array[] = [];
-      let received = 0;
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          received += value.length;
-          if (totalSize > 0) {
-            setDownloadProgress((prev) => ({ ...prev, [fileId]: Math.round((received / totalSize) * 100) }));
-          }
-        }
-      }
-
-      const blob = chunks.length > 0 ? new Blob(chunks as BlobPart[]) : await res.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = objectUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(objectUrl);
+      // Navegação direta, fora do fetch: o link é de outro domínio (Google) e
+      // precisa ser o navegador a buscá-lo, senão o CORS bloqueia. Um <a download>
+      // não serviria — o atributo download é ignorado em link cross-origin.
+      window.location.href = url;
 
       setDownloadState((prev) => ({ ...prev, [fileId]: 'idle' }));
     } catch (err: any) {
@@ -156,7 +134,6 @@ export default function SongPage() {
           )}
           {song.files.map((file) => {
             const state = downloadState[file.id] ?? 'idle';
-            const progress = downloadProgress[file.id] ?? 0;
             return (
               <div
                 key={file.id}
@@ -172,17 +149,9 @@ export default function SongPage() {
                     disabled={state === 'loading'}
                     className="rounded-xl2 bg-smix-primary px-4 py-2 text-xs font-medium hover:opacity-90 transition disabled:opacity-50 min-w-[84px]"
                   >
-                    {state === 'loading' ? `${progress}%` : 'Download'}
+                    {state === 'loading' ? 'Abrindo...' : 'Download'}
                   </button>
                 </div>
-                {state === 'loading' && (
-                  <div className="mt-2 h-1.5 rounded-full bg-smix-bg overflow-hidden">
-                    <div
-                      className="h-full bg-smix-accent transition-all duration-300"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                )}
               </div>
             );
           })}

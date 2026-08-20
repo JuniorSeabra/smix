@@ -8,14 +8,13 @@ import { FilesService } from './files.service';
 export class FilesController {
   constructor(private filesService: FilesService) {}
 
+  // Devolve o link em JSON em vez de redirecionar (302): o frontend chama isto
+  // com fetch + Authorization, e um redirect seria seguido pelo próprio fetch,
+  // que então bateria no Drive com o header Authorization junto e tomaria erro
+  // de CORS. Com o link em mãos, o frontend navega até ele por fora do fetch.
   @Get(':id/download')
   async download(@Param('id') id: string, @Req() req: any, @Res() res: Response) {
-    const file = await this.filesService.getDownloadStream(req.user.userId, id, req.ip);
-
-    res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name)}"`);
-    if (file.size) res.setHeader('Content-Length', file.size);
-
-    file.stream.pipe(res);
+    const url = await this.filesService.getDownloadUrl(req.user.userId, id, req.ip);
+    res.json({ url });
   }
 }

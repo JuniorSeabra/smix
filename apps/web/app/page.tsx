@@ -105,8 +105,8 @@ export default function LoginPage() {
               {loading ? `${progress}%` : 'Entrar'}
             </button>
 
-            {/* Mesma barra de progresso usada no download de arquivo, pra que a
-                espera tenha sempre a mesma leitura no app inteiro. */}
+            {/* Barra de progresso do login. O download de arquivo já teve uma
+                igual, mas hoje quem baixa é o navegador, com a barra dele. */}
             {loading && (
               <>
                 <div className="h-1.5 rounded-full bg-smix-surface overflow-hidden">
