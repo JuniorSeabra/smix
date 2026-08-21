@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { HttpException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { google, drive_v3 } from 'googleapis';
 import * as fs from 'fs';
 import { DriveFileMeta } from './interfaces/drive-file.interface';
@@ -33,6 +33,29 @@ export class GoogleDriveService {
     });
     this.drive = google.drive({ version: 'v3', auth });
     return this.drive;
+  }
+
+  // Repassa a causa real em vez de trocar tudo por uma frase genérica.
+  //
+  // As mensagens daqui eram sempre "Não foi possível acessar o Google Drive no
+  // momento", o que escondia exatamente o que estava errado: falta de variável
+  // de ambiente, chave privada malformada, pasta não compartilhada com a conta
+  // de serviço e instabilidade do Google davam todas o mesmo texto. Diagnosticar
+  // virava adivinhação — foi o que custou tempo em 21/08/2026.
+  //
+  // O que uma HttpException já traz (ex: "não configurada") passa direto. Erro
+  // do Google entra na frase com o motivo dele junto.
+  private erroDoDrive(contexto: string, err: any): never {
+    if (err instanceof HttpException) throw err;
+
+    const motivo =
+      err?.response?.data?.error?.message ??
+      err?.errors?.[0]?.message ??
+      err?.message ??
+      'causa desconhecida';
+
+    this.logger.error(`${contexto}: ${motivo}`, err as Error);
+    throw new ServiceUnavailableException(`${contexto}: ${motivo}`);
   }
 
   private guessMimeType(name: string, reportedMimeType: string | null | undefined): string {
@@ -70,8 +93,7 @@ export class GoogleDriveService {
         size: f.size ? Number(f.size) : null,
       }));
     } catch (err) {
-      this.logger.error(`Falha ao listar pasta ${folderId} no Google Drive`, err as Error);
-      throw new ServiceUnavailableException('Não foi possível acessar o Google Drive no momento');
+      this.erroDoDrive(`Falha ao listar a pasta ${folderId} no Drive`, err);
     }
   }
 
@@ -91,8 +113,7 @@ export class GoogleDriveService {
       };
     } catch (err: any) {
       if (err?.code === 404) throw new NotFoundException('Arquivo não encontrado no Google Drive');
-      this.logger.error(`Falha ao buscar metadados do arquivo ${fileId} no Google Drive`, err as Error);
-      throw new ServiceUnavailableException('Não foi possível acessar o Google Drive no momento');
+      this.erroDoDrive(`Falha ao ler o arquivo ${fileId} no Drive`, err);
     }
   }
 
@@ -122,8 +143,7 @@ export class GoogleDriveService {
       });
       return created.data.id!;
     } catch (err) {
-      this.logger.error(`Falha ao criar/achar pasta do artista "${artistName}" no Google Drive`, err as Error);
-      throw new ServiceUnavailableException('Não foi possível organizar a pasta do artista no Google Drive');
+      this.erroDoDrive(`Falha ao organizar a pasta do artista "${artistName}" no Drive`, err);
     }
   }
 
@@ -146,8 +166,7 @@ export class GoogleDriveService {
         size: res.data.size ? Number(res.data.size) : null,
       };
     } catch (err) {
-      this.logger.error(`Falha ao subir arquivo "${fileName}" pro Google Drive`, err as Error);
-      throw new ServiceUnavailableException('Não foi possível enviar o arquivo para o Google Drive');
+      this.erroDoDrive(`Falha ao enviar "${fileName}" pro Drive`, err);
     }
   }
 
@@ -185,8 +204,7 @@ export class GoogleDriveService {
       return { permissionId: permission.data.id!, downloadUrl: this.buildDownloadUrl(fileId) };
     } catch (err: any) {
       if (err?.code === 404) throw new NotFoundException('Arquivo não encontrado no Google Drive');
-      this.logger.error(`Falha ao liberar acesso temporário ao arquivo ${fileId}`, err as Error);
-      throw new ServiceUnavailableException('Não foi possível liberar o download no momento');
+      this.erroDoDrive(`Falha ao liberar o download do arquivo ${fileId}`, err);
     }
   }
 

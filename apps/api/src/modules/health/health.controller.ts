@@ -1,50 +1,72 @@
 import { Controller, Get } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { GoogleDriveService } from '../google-drive/google-drive.service';
 
 // Diagnóstico da API. Aberto de propósito: precisa responder justamente quando
 // o login está quebrado, que é quando ninguém consegue autenticar pra investigar.
 //
-// Nunca devolve a connection string nem parte dela — só se a variável existe e
-// se o banco respondeu. Mensagem de erro do Prisma é sanitizada antes de sair:
-// falha de autenticação costuma trazer usuário e host no texto.
+// Nunca devolve credencial — só se as variáveis existem e se o serviço
+// respondeu. Mensagens de erro passam por um filtro antes de sair.
 @Controller('health')
 export class HealthController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private drive: GoogleDriveService,
+  ) {}
 
   @Get()
   async check() {
-    const temDatabaseUrl = !!process.env.DATABASE_URL;
-
-    let banco: string;
-    let tabelas: number | null = null;
-
-    if (!temDatabaseUrl) {
-      banco = 'DATABASE_URL nao configurada';
-    } else {
-      try {
-        // Conta as tabelas do schema public: confirma conexão E se o
-        // `prisma db push` chegou a rodar. Banco conectado mas vazio é
-        // exatamente o estado em que o login falha sem motivo aparente.
-        const r = await this.prisma.$queryRawUnsafe<Array<{ total: bigint }>>(
-          "SELECT COUNT(*)::bigint AS total FROM information_schema.tables WHERE table_schema = 'public'",
-        );
-        tabelas = Number(r[0]?.total ?? 0);
-        banco = tabelas > 0 ? 'ok' : 'conectado, porem sem tabelas (falta rodar prisma db push)';
-      } catch (err: any) {
-        const cru = String(err?.message ?? err);
-        // corta credencial/host caso o driver os inclua no texto
-        banco = 'erro ao conectar: ' + cru.replace(/postgres(ql)?:\/\/\S+/gi, '[connection string omitida]').slice(0, 300);
-      }
-    }
-
     return {
       api: 'ok',
-      databaseUrlConfigurada: temDatabaseUrl,
-      banco,
-      tabelas,
-      cadastroPublico: process.env.PUBLIC_SIGNUP_ENABLED === 'true',
-      exigeAssinatura: process.env.REQUIRE_SUBSCRIPTION !== 'false',
-      driveConfigurado: !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && !!process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+      banco: await this.checarBanco(),
+      drive: await this.checarDrive(),
+      flags: {
+        cadastroPublico: process.env.PUBLIC_SIGNUP_ENABLED === 'true',
+        exigeAssinatura: process.env.REQUIRE_SUBSCRIPTION !== 'false',
+      },
     };
+  }
+
+  private async checarBanco() {
+    if (!process.env.DATABASE_URL) return { configurado: false, status: 'DATABASE_URL ausente' };
+    try {
+      // Contar tabelas separa "conectado" de "conectado e com schema aplicado":
+      // banco vazio é exatamente o estado em que o login falha sem motivo claro.
+      const r = await this.prisma.$queryRawUnsafe<Array<{ total: bigint }>>(
+        "SELECT COUNT(*)::bigint AS total FROM information_schema.tables WHERE table_schema = 'public'",
+      );
+      const tabelas = Number(r[0]?.total ?? 0);
+      return { configurado: true, status: tabelas > 0 ? 'ok' : 'sem tabelas (falta prisma db push)', tabelas };
+    } catch (err: any) {
+      return { configurado: true, status: 'erro: ' + this.limpar(err?.message) };
+    }
+  }
+
+  // Não basta dizer se as variáveis existem: chave malformada e pasta não
+  // compartilhada com a conta de serviço passam nessa checagem e só falham na
+  // hora do download. Aqui a gente lista a raiz de verdade e reporta o motivo.
+  private async checarDrive() {
+    const temEmail = !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const temChave = !!process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    const temPasta = !!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
+
+    const variaveis = { email: temEmail, chavePrivada: temChave, pastaRaiz: temPasta };
+    if (!temEmail || !temChave || !temPasta) {
+      return { configurado: false, status: 'faltam variáveis de ambiente', variaveis };
+    }
+
+    try {
+      const pastas = await this.drive.listArtistFolders();
+      return { configurado: true, status: 'ok', variaveis, pastasDeArtista: pastas.length };
+    } catch (err: any) {
+      return { configurado: true, status: 'erro: ' + this.limpar(err?.message), variaveis };
+    }
+  }
+
+  private limpar(msg: unknown): string {
+    return String(msg ?? 'sem detalhe')
+      .replace(/postgres(ql)?:\/\/\S+/gi, '[connection string omitida]')
+      .replace(/-----BEGIN[\s\S]*?-----END[^-]*-----/g, '[chave omitida]')
+      .slice(0, 400);
   }
 }
