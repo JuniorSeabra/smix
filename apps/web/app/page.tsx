@@ -37,19 +37,46 @@ export default function LoginPage() {
 
   const progress = step >= 0 ? STEPS[step].percent : 0;
 
+  // Traduz a falha pro que de fato aconteceu.
+  //
+  // Antes, qualquer resposta não-ok virava "Credenciais inválidas": servidor
+  // fora do ar, banco desconectado e erro interno apareciam todos como senha
+  // errada. O usuário ficava trocando senha e tentando de novo enquanto o
+  // problema estava do nosso lado — foi o que aconteceu em 20/08/2026, com a
+  // API respondendo 500 por falta de banco.
+  function mensagemDeErro(status: number, corpo: any): string {
+    if (status === 401) return 'E-mail ou senha incorretos.';
+    if (status === 403) return corpo?.message ?? 'Acesso não liberado para esta conta.';
+    if (status === 429) return 'Muitas tentativas seguidas. Espere um minuto e tente de novo.';
+    if (status >= 500) return 'O servidor não está respondendo agora. Não é a sua senha — tente de novo em alguns minutos.';
+    return corpo?.message ?? 'Não foi possível entrar.';
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     setStep(0); // 15% — requisição saindo
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+      } catch {
+        // fetch só rejeita quando a requisição não chegou a ter resposta: API
+        // fora do ar, sem internet, DNS. O navegador chama isso de "Load
+        // failed"/"Failed to fetch", que não diz nada a quem está usando o app.
+        throw new Error('Não conseguimos falar com o servidor. Verifique sua internet — se ela estiver ok, o problema é nosso.');
+      }
+
       setStep(1); // 45% — servidor respondeu
-      if (!res.ok) throw new Error('Credenciais inválidas');
+      if (!res.ok) {
+        const corpo = await res.json().catch(() => null);
+        throw new Error(mensagemDeErro(res.status, corpo));
+      }
 
       const data = await res.json();
       setStep(2); // 70% — token recebido
