@@ -4,6 +4,9 @@
   "buildCommand": "npx prisma generate && if [ -n \"$DATABASE_URL\" ]; then npx prisma db push --accept-data-loss; else echo 'DATABASE_URL ausente: schema nao aplicado, a API sobe mas so responde as rotas que nao usam banco'; fi",
   "installCommand": "npm install",
   "outputDirectory": "public",
+  "env": {
+    "GOOGLE_DRIVE_ROOT_FOLDER_ID": "1E39Iu6k2E7m1j9Nj5IuKNOjvhB3OsryU"
+  },
   "functions": {
     "api/index.ts": {
       "maxDuration": 60,
