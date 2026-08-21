@@ -1,0 +1,5 @@
+Pasta vazia de propósito.
+
+A Vercel exige um diretório de saída quando o projeto define buildCommand, e
+este projeto não publica nada estático — é só API, servida por api/index.ts.
+Sem esta pasta o deploy falha com "No Output Directory named public found".

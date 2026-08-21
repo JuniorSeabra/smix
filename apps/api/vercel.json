@@ -3,6 +3,7 @@
   "framework": null,
   "buildCommand": "npx prisma generate && if [ -n \"$DATABASE_URL\" ]; then npx prisma db push --accept-data-loss; else echo 'DATABASE_URL ausente: schema nao aplicado, a API sobe mas so responde as rotas que nao usam banco'; fi",
   "installCommand": "npm install",
+  "outputDirectory": "public",
   "functions": {
     "api/index.ts": {
       "maxDuration": 60,
