@@ -60,6 +60,10 @@ model User {
 model Artist {
   id          String   @id @default(uuid())
   name        String
+  // Pasta do artista dentro da raiz do S-MIX no Drive. Guardar o id, e não
+  // depender do nome, é o que permite reconhecer o mesmo artista depois que a
+  // pasta é renomeada — pelo nome, a sincronização criava um artista duplicado.
+  googleDriveFolderId String? @unique
   photoUrl    String?
   description String?
   status      ContentStatus @default(ACTIVE)
