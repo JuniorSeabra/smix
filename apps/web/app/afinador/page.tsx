@@ -45,6 +45,15 @@ function corPorDesvio(cents: number | null): { hex: string; classe: string } {
 
 type Leitura = { name: string; octave: number; cents: number; freq: number };
 
+// O tipo exato que getFloatTimeDomainData aceita, tirado da própria assinatura.
+//
+// Versões recentes do TypeScript tornaram Float32Array genérico no buffer que o
+// sustenta, e um `new Float32Array(n)` guardado em useRef vira
+// Float32Array<ArrayBufferLike>, que não é aceito onde se espera
+// Float32Array<ArrayBuffer>. Derivar o tipo daqui resolve sem fixar uma forma
+// que só existe a partir de certa versão.
+type BufferAnalise = Parameters<AnalyserNode['getFloatTimeDomainData']>[0];
+
 export default function TunerPage() {
   const [listening, setListening] = useState(false);
   const [permissionError, setPermissionError] = useState<string | null>(null);
@@ -54,7 +63,7 @@ export default function TunerPage() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const bufferRef = useRef<Float32Array | null>(null);
+  const bufferRef = useRef<BufferAnalise | null>(null);
   // Valores suavizados vivem em ref, não em estado: são atualizados a cada
   // análise e só viram render depois de arredondados.
   const centsSuaveRef = useRef<number | null>(null);
@@ -86,7 +95,9 @@ export default function TunerPage() {
       analyserRef.current = analyser;
       // Um buffer só, reaproveitado: alocar 2048 floats 20 vezes por segundo
       // enche a memória de lixo e faz o coletor rodar no meio da afinação.
-      bufferRef.current = new Float32Array(analyser.fftSize);
+      bufferRef.current = new Float32Array(
+        new ArrayBuffer(analyser.fftSize * Float32Array.BYTES_PER_ELEMENT),
+      ) as BufferAnalise;
       centsSuaveRef.current = null;
       freqSuaveRef.current = null;
 
