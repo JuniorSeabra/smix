@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
 
+// "Mixagem" saiu do menu por ora: a tela existe em /mixagem mas ainda vai ser
+// retrabalhada, e no estado atual só confunde quem abre. Devolver a linha aqui
+// basta pra ela voltar.
 const ITEMS = [
   { href: '/home', label: 'Início', icon: '🏠' },
   { href: '/explore', label: 'Explore', icon: '🔍' },
-  { href: '/mixagem', label: 'Mixagem', icon: '🎚' },
   { href: '/afinador', label: 'Afinador', icon: '🎵' },
   { href: '/chat', label: 'Chat', icon: '💬' },
 ];

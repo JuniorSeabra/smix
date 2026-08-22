@@ -19,6 +19,13 @@ export async function processProfilePhoto(buffer: Buffer, declaredMimeType: stri
   let output: Buffer;
   try {
     output = await sharp(buffer)
+      // rotate() sem argumento aplica a orientacao gravada no EXIF antes de
+      // qualquer outra coisa. Camera de celular quase sempre grava a foto
+      // deitada e marca no EXIF quanto girar; como recodificamos pra webp
+      // descartando metadados, sem isto a marca some sem nunca ter sido
+      // aplicada e o rosto aparece de lado. Precisa vir antes do resize,
+      // senao o recorte acontece sobre a imagem ainda torta.
+      .rotate()
       .resize(OUTPUT_SIZE, OUTPUT_SIZE, { fit: 'cover', position: 'attention' })
       .webp({ quality: 80 })
       .toBuffer();

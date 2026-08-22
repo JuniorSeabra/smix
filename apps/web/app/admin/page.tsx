@@ -13,12 +13,13 @@ type Dashboard = {
   totalSongs: number;
   totalDownloads: number;
   pendingMessages: number;
-  recentPayments: { id: string; amount: string; status: string; user: { name: string; email: string } }[];
 };
 
+// Sem cartão de assinatura nem bloco de pagamentos: a plataforma não cobra de
+// ninguém. O que existia ali eram as liberações manuais do cadastro, e mostrar
+// isso como "assinaturas" e "pagamentos" passava a impressão de haver cobrança.
 const CARDS: { key: keyof Dashboard; label: string }[] = [
   { key: 'totalUsers', label: 'Usuários' },
-  { key: 'activeSubscriptions', label: 'Assinaturas ativas' },
   { key: 'totalArtists', label: 'Artistas' },
   { key: 'totalSongs', label: 'Músicas' },
   { key: 'totalDownloads', label: 'Downloads' },
@@ -71,30 +72,6 @@ export default function AdminDashboardPage() {
           </div>
         ))}
       </div>
-
-      <section className="mt-8">
-        <h2 className="text-sm text-smix-muted mb-3">Pagamentos recentes</h2>
-        <div className="flex flex-col gap-2">
-          {data.recentPayments.length === 0 && (
-            <p className="text-smix-muted text-sm">Nenhum pagamento registrado ainda.</p>
-          )}
-          {data.recentPayments.map((p) => (
-            <div
-              key={p.id}
-              className="rounded-xl2 bg-smix-surface border border-smix-border px-4 py-3 flex justify-between items-center text-sm"
-            >
-              <div>
-                <p>{p.user.name}</p>
-                <p className="text-smix-muted text-xs">{p.user.email}</p>
-              </div>
-              <div className="text-right">
-                <p>R$ {p.amount}</p>
-                <p className="text-smix-muted text-xs">{p.status}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       <div className="mt-8">
       <ChartCard title="Indicadores" subtitle="Comparativo dos números atuais do sistema">
