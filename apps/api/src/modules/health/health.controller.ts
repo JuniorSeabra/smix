@@ -32,9 +32,16 @@ export class HealthController {
     try {
       // Contar tabelas separa "conectado" de "conectado e com schema aplicado":
       // banco vazio é exatamente o estado em que o login falha sem motivo claro.
-      const r = await this.prisma.$queryRawUnsafe<Array<{ total: bigint }>>(
-        "SELECT COUNT(*)::bigint AS total FROM information_schema.tables WHERE table_schema = 'public'",
-      );
+      // $queryRaw (template tag), e não $queryRawUnsafe: esta rota é pública e
+      // sem autenticação. A consulta de hoje é uma constante e não seria
+      // injetável, mas Unsafe aqui é uma armadilha — basta alguém interpolar um
+      // parâmetro nessa string no futuro pra virar SQL injection direta, sem
+      // nenhum aviso. A versão em template tag parametriza sozinha.
+      const r = await this.prisma.$queryRaw<Array<{ total: bigint }>>`
+        SELECT COUNT(*)::bigint AS total
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+      `;
       const tabelas = Number(r[0]?.total ?? 0);
       return { configurado: true, status: tabelas > 0 ? 'ok' : 'sem tabelas (falta prisma db push)', tabelas };
     } catch (err: any) {

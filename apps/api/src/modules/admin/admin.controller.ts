@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminService } from './admin.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 // Todo o controller exige login + role ADMIN, verificado no backend.
 @Controller('admin')
@@ -38,17 +39,17 @@ export class AdminController {
 
   @Patch('users/:id')
   async updateUser(
-    @Param('id') id: string,
-    @Body() body: { role?: 'USER' | 'ADMIN'; status?: 'ACTIVE' | 'INACTIVE'; name?: string; email?: string; newPassword?: string },
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateUserDto,
     @Req() req: any,
   ) {
-    const result = await this.adminService.updateUser(id, body);
+    const result = await this.adminService.updateUser(id, dto);
     await this.adminService.recordAudit(req.user.userId, 'update_user', 'User', id);
     return result;
   }
 
   @Delete('users/:id')
-  deleteUser(@Param('id') id: string, @Req() req: any) {
+  deleteUser(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
     return this.adminService.deleteUser(id, req.user.userId);
   }
 

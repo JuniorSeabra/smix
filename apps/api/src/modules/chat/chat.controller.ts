@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ChatService, RETENTION_HOURS } from './chat.service';
+import { SendMessageDto } from './dto/send-message.dto';
 
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
@@ -17,9 +18,11 @@ export class ChatController {
     return this.chatService.listMyMessages(req.user.userId);
   }
 
+  // assertContent continua sendo chamado mesmo com o DTO validando antes: é a
+  // checagem que também protege quem chamar o service por outro caminho.
   @Post('conversation/messages')
-  sendMine(@Req() req: any, @Body() body: { content: string }) {
-    const content = this.chatService.assertContent(body?.content);
+  sendMine(@Req() req: any, @Body() dto: SendMessageDto) {
+    const content = this.chatService.assertContent(dto.content);
     return this.chatService.sendMyMessage(req.user.userId, content);
   }
 
@@ -42,36 +45,36 @@ export class ChatController {
   @Get('admin/conversations/:id')
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
-  listConversationMessages(@Param('id') id: string) {
+  listConversationMessages(@Param('id', ParseUUIDPipe) id: string) {
     return this.chatService.listConversationMessages(id);
   }
 
   @Post('admin/conversations/:id/messages')
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
-  reply(@Req() req: any, @Param('id') id: string, @Body() body: { content: string }) {
-    const content = this.chatService.assertContent(body?.content);
+  reply(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() dto: SendMessageDto) {
+    const content = this.chatService.assertContent(dto.content);
     return this.chatService.replyAsAdmin(req.user.userId, id, content);
   }
 
   @Delete('admin/conversations/:id')
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
-  deleteConversation(@Req() req: any, @Param('id') id: string) {
+  deleteConversation(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
     return this.chatService.deleteConversation(id, req.user.userId);
   }
 
   @Delete('admin/messages/:id')
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
-  deleteMessage(@Req() req: any, @Param('id') id: string) {
+  deleteMessage(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
     return this.chatService.deleteMessage(id, req.user.userId);
   }
 
   @Patch('admin/conversations/:id/status')
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
-  toggleStatus(@Param('id') id: string) {
+  toggleStatus(@Param('id', ParseUUIDPipe) id: string) {
     return this.chatService.closeConversation(id);
   }
 }

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -28,6 +29,12 @@ import { HealthModule } from './modules/health/health.module';
     PaymentsModule,
     ChatModule,
     HealthModule,
+  ],
+  providers: [
+    // Registrar o ThrottlerModule acima só disponibiliza a configuração — ele
+    // não intercepta nada sozinho. Sem este APP_GUARD o limite de 100/min ficava
+    // inerte e POST /auth/login aceitava tentativas de senha sem nenhum freio.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

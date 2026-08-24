@@ -1,15 +1,28 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminFilesService } from './admin-files.service';
+import { CreateFileDto, CreateLicenseDto, UpdateFileDto } from './dto/file.dto';
 
 @Controller('admin/files')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
 export class AdminFilesController {
   constructor(private adminFilesService: AdminFilesService) {}
+
+  // 'licenses' precisa vir antes de qualquer rota com parâmetro no mesmo nível,
+  // senão o Nest casaria /admin/files/licenses com um :id.
+  @Get('licenses')
+  listLicenses() {
+    return this.adminFilesService.listLicenses();
+  }
+
+  @Post('licenses')
+  createLicense(@Body() dto: CreateLicenseDto) {
+    return this.adminFilesService.createLicense(dto);
+  }
 
   @Get()
   list(@Query('songId') songId?: string) {
@@ -25,22 +38,12 @@ export class AdminFilesController {
   }
 
   @Post()
-  create(@Body() body: { songId: string; name: string; type: string; googleDriveFileId: string; licenseId?: string }) {
-    return this.adminFilesService.create(body);
+  create(@Body() dto: CreateFileDto) {
+    return this.adminFilesService.create(dto);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.adminFilesService.update(id, body);
-  }
-
-  @Get('licenses')
-  listLicenses() {
-    return this.adminFilesService.listLicenses();
-  }
-
-  @Post('licenses')
-  createLicense(@Body() body: { name: string; type: string; source?: string; notes?: string }) {
-    return this.adminFilesService.createLicense(body);
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateFileDto) {
+    return this.adminFilesService.update(id, dto);
   }
 }
