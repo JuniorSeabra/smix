@@ -13,9 +13,9 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
-  // 'checando' até sabermos o cargo. Ver o efeito abaixo — o polling não pode
-  // começar antes disso.
-  const [modo, setModo] = useState<'checando' | 'usuario'>('checando');
+  // null = ainda não sabemos o cargo. A tela do usuário aparece de qualquer
+  // forma nesse estado; só o polling espera. Ver o efeito abaixo.
+  const [ehAdmin, setEhAdmin] = useState<boolean | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   async function loadMessages() {
@@ -39,32 +39,46 @@ export default function ChatPage() {
   // Isto é conveniência de navegação, não permissão: quem decide o que o admin
   // pode ver continua sendo o RolesGuard no backend. Um usuário comum que chegue
   // em /admin/chat por conta própria leva 403 da API do mesmo jeito.
+  // Não bloqueia a tela enquanto a resposta não chega: se a API estiver lenta ou
+  // fora do ar, o usuário comum veria "Carregando..." para sempre. Só o polling
+  // espera; a interface aparece na hora, e o redirecionamento acontece depois
+  // caso o cargo seja ADMIN.
+  //
+  // O timeout existe pelo mesmo motivo: sem ele, uma requisição pendurada
+  // deixaria o chat do usuário mudo, sem nunca carregar mensagem nenhuma.
   useEffect(() => {
     let ativo = true;
+    const desistirEm = setTimeout(() => {
+      if (ativo) setEhAdmin((atual) => (atual === null ? false : atual));
+    }, 4000);
+
     apiFetch('/users/me')
       .then((res) => (res.ok ? res.json() : null))
       .then((perfil) => {
         if (!ativo) return;
-        if (perfil?.role === 'ADMIN') {
-          router.replace('/admin/chat');
-          return;
-        }
-        setModo('usuario');
+        const admin = perfil?.role === 'ADMIN';
+        setEhAdmin(admin);
+        if (admin) router.replace('/admin/chat');
       })
       .catch(() => {
-        if (ativo) setModo('usuario');
+        if (ativo) setEhAdmin(false);
       });
+
     return () => {
       ativo = false;
+      clearTimeout(desistirEm);
     };
   }, [router]);
 
   useEffect(() => {
-    if (modo !== 'usuario') return;
+    // Só busca mensagem depois de confirmar que NÃO é admin. /chat/conversation
+    // cria a conversa de suporte no primeiro acesso, e um admin passando por
+    // aqui viraria cliente na própria fila de atendimento.
+    if (ehAdmin !== false) return;
     loadMessages();
     const interval = setInterval(loadMessages, 5000); // polling simples até termos WebSocket
     return () => clearInterval(interval);
-  }, [modo]);
+  }, [ehAdmin]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -86,30 +100,38 @@ export default function ChatPage() {
     }
   }
 
+  // pb-28 em todas as larguras, sem md:pb-8.
+  //
+  // A BottomNav é `fixed bottom-0` e NÃO some no desktop — não tem md:hidden.
+  // O md:pb-8 reservava 32px pra uma barra de ~60px, então no PC ela cobria o
+  // fim da página. Aqui o fim da página é justamente o campo de digitar, que por
+  // isso sumia. As telas do admin já usavam pb-28 e por isso sempre couberam.
   return (
-    <main className="min-h-screen flex flex-col pb-24 md:pb-8">
+    <main className="min-h-screen flex flex-col pb-28">
       <Header />
       <BottomNav />
 
-      {/* Sem isto a tela de suporte piscava por um instante antes de o admin ser
-          levado pra fila de atendimento. */}
-      {modo === 'checando' && (
+      {/* Admin vê só esta linha durante o instante do redirecionamento. */}
+      {ehAdmin === true && (
         <div className="px-5 mt-10 text-center">
-          <p className="text-smix-muted text-sm">Carregando...</p>
+          <p className="text-smix-muted text-sm">Abrindo a fila de atendimento...</p>
         </div>
       )}
       {/* max-w-sm no celular (o desenho original), mas solto a partir de md: a
           coluna travada em 384px numa tela de PC deixava a caixa de texto e o
           botão Enviar espremidos num canto, desproporcionais ao resto da página.
           A tela do admin nunca teve esse problema porque o painel dela cresce. */}
-      {modo === 'usuario' && (
+      {ehAdmin !== true && (
       <div className="px-5 mt-4 flex-1 flex flex-col w-full max-w-sm md:max-w-2xl mx-auto">
         <h1 className="text-xl font-bold mb-1">Suporte</h1>
         <p className="text-smix-muted text-xs mb-4">
           As mensagens ficam guardadas por 48 horas e depois são apagadas automaticamente.
         </p>
 
-        <div className="flex-1 flex flex-col gap-2 overflow-y-auto min-h-[300px] md:min-h-[420px]">
+        {/* min-h baixo de propósito: quem dá altura à lista é o flex-1, e é ela
+            que rola. Um min-height grande empurrava o formulário pra baixo da
+            dobra no PC, obrigando a rolar a página pra achar o campo. */}
+        <div className="flex-1 flex flex-col gap-2 overflow-y-auto min-h-[180px]">
           {messages.length === 0 && (
             <p className="text-smix-muted text-sm text-center mt-8">
               Envie uma mensagem para o administrador tirar suas dúvidas.
@@ -133,7 +155,7 @@ export default function ChatPage() {
         {/* min-w-0 no input e shrink-0 no botão: item flex tem largura mínima
             igual ao conteúdo por padrão, então uma mensagem longa empurrava o
             botão pra fora da tela no celular em vez de o campo rolar por dentro. */}
-        <form onSubmit={handleSend} className="flex items-stretch gap-2 mt-4">
+        <form onSubmit={handleSend} className="shrink-0 flex items-stretch gap-2 mt-4">
           <input
             type="text"
             placeholder="Escreva sua mensagem..."

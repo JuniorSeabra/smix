@@ -203,7 +203,7 @@ export default function TunerPage() {
   const CY = 150;
 
   return (
-    <main className="min-h-screen pb-24 md:pb-8">
+    <main className="min-h-screen pb-28">
       <Header />
       <BottomNav />
 
