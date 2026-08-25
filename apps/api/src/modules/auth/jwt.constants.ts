@@ -12,29 +12,42 @@ export interface JwtPayload {
   type: TokenType;
 }
 
-// Falha no boot, e não na primeira requisição.
+// Duas exigências com pesos diferentes, de propósito.
 //
-// Sem segredo, `secretOrKey` ficaria undefined e a verificação de assinatura
-// deixaria de acontecer de forma previsível — o modo de falha mais perigoso
-// possível numa camada de autenticação. Melhor a aplicação não subir.
-export function requireJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length < 32) {
+// SEGREDO AUSENTE derruba a aplicação: sem ele `secretOrKey` fica undefined e a
+// verificação de assinatura para de acontecer de forma previsível — o pior modo
+// de falha possível numa camada de autenticação. Melhor não subir.
+//
+// SEGREDO CURTO apenas avisa, e não impede o boot. A checagem de tamanho é uma
+// boa prática, não um requisito de funcionamento: um segredo de 27 caracteres
+// assina e verifica token normalmente, só resiste menos a força bruta offline.
+// Derrubar a API por causa disso transformaria um endurecimento em queda de
+// serviço no deploy — trocar o valor no painel do host é uma tarefa de minutos
+// que não precisa bloquear a subida de correções críticas.
+const TAMANHO_RECOMENDADO = 32;
+
+function lerSegredo(nome: string): string {
+  const secret = process.env[nome];
+  if (!secret) {
     throw new Error(
-      'JWT_SECRET ausente ou curto demais (mínimo 32 caracteres). ' +
-        'Defina-o nas variáveis de ambiente antes de iniciar a API.',
+      `${nome} ausente. Defina-o nas variáveis de ambiente antes de iniciar a API.`,
+    );
+  }
+  if (secret.length < TAMANHO_RECOMENDADO) {
+    // console.warn e não Logger: isto roda antes do Nest existir.
+    console.warn(
+      `[seguranca] ${nome} tem ${secret.length} caracteres; o recomendado é ao ` +
+        `menos ${TAMANHO_RECOMENDADO}. A API sobe assim mesmo, mas troque o valor ` +
+        `no painel do host — segredo curto é mais fácil de quebrar offline.`,
     );
   }
   return secret;
 }
 
+export function requireJwtSecret(): string {
+  return lerSegredo('JWT_SECRET');
+}
+
 export function requireRefreshSecret(): string {
-  const secret = process.env.JWT_REFRESH_SECRET;
-  if (!secret || secret.length < 32) {
-    throw new Error(
-      'JWT_REFRESH_SECRET ausente ou curto demais (mínimo 32 caracteres). ' +
-        'Defina-o nas variáveis de ambiente antes de iniciar a API.',
-    );
-  }
-  return secret;
+  return lerSegredo('JWT_REFRESH_SECRET');
 }
