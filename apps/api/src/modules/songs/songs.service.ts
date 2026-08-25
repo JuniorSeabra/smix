@@ -63,10 +63,25 @@ export class SongsService {
       .map((result) => result.item.song);
   }
 
+  // O select dos arquivos é explícito de propósito. Esta rota é pública
+  // (GET /songs/:id, sem guard), e um include solto devolvia TODOS os campos de
+  // File — inclusive googleDriveFileId. Com esse id em mãos, qualquer pessoa não
+  // autenticada podia baixar direto do Google Drive durante a janela de 60min em
+  // que FilesService deixa o arquivo com permissão 'anyone', sem passar pela
+  // checagem de assinatura e sem aparecer no DownloadLog.
+  //
+  // O googleDriveFileId nunca deve sair da API: quem precisa dele é o próprio
+  // backend, em GET /files/:id/download, que só responde após validar assinatura.
   findOne(id: string) {
     return this.prisma.song.findUnique({
       where: { id },
-      include: { artist: true, files: { where: { status: 'ACTIVE' } } },
+      include: {
+        artist: true,
+        files: {
+          where: { status: 'ACTIVE' },
+          select: { id: true, name: true, type: true, size: true, createdAt: true },
+        },
+      },
     });
   }
 

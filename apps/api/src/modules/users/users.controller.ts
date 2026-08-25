@@ -13,6 +13,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PROFILE_PHOTO_MULTER_LIMITS, profilePhotoFileFilter } from '../../common/utils/profile-photo';
 import { UsersService } from './users.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -25,8 +26,8 @@ export class UsersController {
   }
 
   @Patch('me')
-  updateProfile(@Req() req: any, @Body() body: { name?: string }) {
-    return this.usersService.updateProfile(req.user.userId, body);
+  updateProfile(@Req() req: any, @Body() dto: UpdateProfileDto) {
+    return this.usersService.updateProfile(req.user.userId, dto);
   }
 
   @Patch('me/photo')
