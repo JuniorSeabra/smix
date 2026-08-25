@@ -5,17 +5,17 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 
-// BootstrapController saiu daqui de novo em 24/08/2026, depois de cumprir o que
-// motivou a reativação em 20/08 (banco recriado vazio no Neon, sem nenhum admin).
-// Os admins já existem e o caminho normal — /admin/usuarios — voltou a funcionar.
+// Não existe mais controller de bootstrap.
 //
-// Ele não pode ficar registrado no dia a dia: duas das três rotas eram GET com o
-// ADMIN_BOOTSTRAP_SECRET na query string, e query string vai parar em log de
-// acesso do host, histórico de navegador e header Referer. Um segredo que vaza
-// por log vira ADMIN para quem o ler, sem senha nenhuma.
+// Ele foi removido do código em 24/08/2026, não apenas desregistrado: concedia
+// ADMIN por HTTP, protegido só por um segredo compartilhado, e duas das três
+// rotas recebiam esse segredo por query string — que vaza em log de acesso,
+// histórico de navegador e cabeçalho Referer.
 //
-// Se um dia o cenário se repetir, reativar aqui, usar, e remover na sequência —
-// trocando ADMIN_BOOTSTRAP_SECRET por um valor novo depois.
+// O caminho de recuperação agora é `npm run create-admin` (ver
+// scripts/create-admin.ts), que roda no shell e não expõe rota nenhuma.
+// A variável ADMIN_BOOTSTRAP_SECRET não é mais lida por lugar algum e deve ser
+// apagada do painel do host.
 @Module({
   imports: [PassportModule, JwtModule.register({})],
   controllers: [AuthController],

@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -103,16 +104,31 @@ export class AdminService {
     });
   }
 
-  updateUser(
+  // Campo a campo, sem espalhar o objeto da requisição.
+  //
+  // Esta é a única rota do sistema capaz de alterar `role` — e por isso ela só
+  // existe atrás de JwtAuthGuard + RolesGuard + @Roles(ADMIN). Montar o update
+  // explicitamente garante que nenhuma outra coluna (passwordHash cru, campos
+  // futuros do modelo) entre de carona caso o DTO seja afrouxado um dia.
+  async updateUser(
     id: string,
     data: { role?: 'USER' | 'ADMIN'; status?: 'ACTIVE' | 'INACTIVE'; name?: string; email?: string; newPassword?: string },
   ) {
-    const { newPassword, ...rest } = data;
-    const updateData: any = { ...rest };
-    if (newPassword) {
-      updateData.passwordHash = bcrypt.hashSync(newPassword, 12);
+    const updateData: Prisma.UserUpdateInput = {};
+    if (data.role !== undefined) updateData.role = data.role;
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.newPassword) {
+      updateData.passwordHash = await bcrypt.hash(data.newPassword, 12);
     }
-    return this.prisma.user.update({ where: { id }, data: updateData });
+
+    return this.prisma.user.update({
+      where: { id },
+      // Sem passwordHash na resposta: este retorno vira o JSON da API.
+      select: { id: true, name: true, email: true, role: true, status: true, createdAt: true },
+      data: updateData,
+    });
   }
 
   // Apaga o usuário de verdade (não é o "Desativar", que só marca status =

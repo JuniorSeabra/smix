@@ -6,6 +6,12 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { processProfilePhoto } from '../../common/utils/profile-photo';
 import { isPublicSignupEnabled } from '../../common/config/features';
+import {
+  ACCESS_TOKEN_TYPE,
+  REFRESH_TOKEN_TYPE,
+  requireJwtSecret,
+  requireRefreshSecret,
+} from './jwt.constants';
 
 const SALT_ROUNDS = 12;
 
@@ -41,7 +47,7 @@ export class AuthService {
       },
     });
 
-    return this.buildTokenResponse(user.id, user.email, user.role);
+    return this.buildTokenResponse(user.id, user.email);
   }
 
   async login(dto: LoginDto) {
@@ -55,20 +61,37 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-    return this.buildTokenResponse(user.id, user.email, user.role);
+    return this.buildTokenResponse(user.id, user.email);
   }
 
-  private buildTokenResponse(userId: string, email: string, role: string) {
-    const payload = { sub: userId, email, role };
+  // O cargo NÃO entra mais no payload.
+  //
+  // Antes o token carregava `role`, e um campo desses convida quem for mexer no
+  // código a lê-lo para decidir permissão — o que seria confiar num dado que
+  // viaja pelo cliente. Hoje o cargo é sempre relido do banco em
+  // JwtStrategy.validate, então guardá-lo no token só cria risco sem uso.
+  //
+  // `type` separa token de acesso de token de renovação: os dois têm o mesmo
+  // formato e, se os segredos coincidirem, um passaria pelo outro.
+  private buildTokenResponse(userId: string, email: string) {
+    const base = { sub: userId, email };
     return {
-      accessToken: this.jwtService.sign(payload, {
-        secret: process.env.JWT_SECRET,
-        expiresIn: process.env.JWT_EXPIRES_IN ?? '15m',
-      }),
-      refreshToken: this.jwtService.sign(payload, {
-        secret: process.env.JWT_REFRESH_SECRET,
-        expiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
-      }),
+      accessToken: this.jwtService.sign(
+        { ...base, type: ACCESS_TOKEN_TYPE },
+        {
+          secret: requireJwtSecret(),
+          algorithm: 'HS256',
+          expiresIn: process.env.JWT_EXPIRES_IN ?? '15m',
+        },
+      ),
+      refreshToken: this.jwtService.sign(
+        { ...base, type: REFRESH_TOKEN_TYPE },
+        {
+          secret: requireRefreshSecret(),
+          algorithm: 'HS256',
+          expiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
+        },
+      ),
     };
   }
 }
