@@ -10,6 +10,23 @@ const EXTENSION_MIME_FALLBACK: Record<string, string> = {
   zip: 'application/zip',
 };
 
+// Lê os <input type="hidden"> do formulário da tela de aviso do Drive.
+//
+// Fica fora da classe e exportado porque é a única parte desse caminho que dá
+// pra testar sem falar com o Google — e é justamente a parte que quebra se eles
+// mudarem o HTML. Aceita aspas simples ou duplas e atributos em qualquer ordem,
+// que é o mínimo pra não depender da formatação exata que o Google usa hoje.
+export function lerCamposOcultos(html: string): Record<string, string> {
+  const campos: Record<string, string> = {};
+  for (const [tag] of html.matchAll(/<input\b[^>]*>/gi)) {
+    if (!/type\s*=\s*["']?hidden/i.test(tag)) continue;
+    const nome = /\bname\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1];
+    const valor = /\bvalue\s*=\s*["']([^"']*)["']/i.exec(tag)?.[1];
+    if (nome && valor !== undefined) campos[nome] = valor;
+  }
+  return campos;
+}
+
 @Injectable()
 export class GoogleDriveService {
   private readonly logger = new Logger(GoogleDriveService.name);
@@ -179,6 +196,65 @@ export class GoogleDriveService {
   // ~100MB, ou seja, com todos os nossos multitracks. (Verificado em 20/08/2026.)
   buildDownloadUrl(fileId: string): string {
     return `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
+  }
+
+  // Resolve o link que o navegador vai abrir, pulando a tela de aviso do Drive.
+  //
+  // O confirm=t sozinho parou de bastar (o comentário acima valia em 20/08/2026;
+  // o Google mudou desde então). Hoje, para arquivo grande, aquela URL responde
+  // uma PÁGINA HTML — "não foi possível verificar se há vírus... você ainda quer
+  // fazer o download?" — com um formulário de campos ocultos, entre eles um
+  // `uuid` gerado na hora. É esse formulário que leva ao arquivo: sem o uuid não
+  // existe como pular a tela.
+  //
+  // Então o backend abre essa página (poucos KB de HTML, não o arquivo), lê os
+  // campos ocultos e devolve ao frontend a URL final já com o uuid. O músico
+  // clica em baixar e o download começa direto, sem tela no meio.
+  //
+  // Quem baixa os 300MB continua sendo o navegador, direto do Google. O que
+  // passa pelo nosso servidor é só o HTML da tela de aviso.
+  //
+  // Se qualquer coisa falhar — Google mudou o HTML, rede lenta, timeout — cai no
+  // link de sempre e o usuário vê a tela de aviso, que é o comportamento atual.
+  // Nunca fica pior do que já está.
+  async resolverLinkDireto(fileId: string): Promise<string> {
+    const base = this.buildDownloadUrl(fileId);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+
+    try {
+      const res = await fetch(base, { signal: controller.signal, redirect: 'follow' });
+      const tipo = res.headers.get('content-type') ?? '';
+
+      // Arquivo pequeno: o Google já responde os bytes, sem tela nenhuma. Aqui o
+      // corpo NÃO pode ser lido de jeito nenhum — seria baixar o arquivo pelo
+      // servidor, exatamente o que estourou a banda em 20/08. Descarta e sai.
+      if (!tipo.includes('text/html')) {
+        await res.body?.cancel();
+        return base;
+      }
+
+      const campos = lerCamposOcultos(await res.text());
+
+      // Sem uuid não adianta remontar: seria a mesma URL que já caiu na tela.
+      if (!campos.uuid) return base;
+
+      const params = new URLSearchParams({
+        id: campos.id ?? fileId,
+        export: campos.export ?? 'download',
+        confirm: campos.confirm ?? 't',
+        uuid: campos.uuid,
+      });
+      return `https://drive.usercontent.google.com/download?${params.toString()}`;
+    } catch (err) {
+      this.logger.warn(
+        `Não deu pra pular a tela de aviso do Drive para ${fileId}; usando o link comum. ` +
+          `Causa: ${(err as Error)?.message ?? 'desconhecida'}`,
+      );
+      return base;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   // Libera o arquivo pra download direto e devolve o link do Google.

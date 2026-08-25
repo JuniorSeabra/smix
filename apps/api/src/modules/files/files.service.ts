@@ -106,10 +106,10 @@ export class FilesService {
       },
     });
     if (existing) {
-      return this.googleDriveService.buildDownloadUrl(file.googleDriveFileId);
+      return this.googleDriveService.resolverLinkDireto(file.googleDriveFileId);
     }
 
-    const { permissionId, downloadUrl } = await this.googleDriveService.grantTemporaryPublicAccess(
+    const { permissionId } = await this.googleDriveService.grantTemporaryPublicAccess(
       file.googleDriveFileId,
     );
 
@@ -121,6 +121,9 @@ export class FilesService {
       },
     });
 
-    return downloadUrl;
+    // Resolve DEPOIS de liberar a permissão, nunca antes: enquanto o arquivo é
+    // privado o Google responde uma página de "pedir acesso" em vez do aviso de
+    // vírus, e não haveria uuid nenhum pra ler ali.
+    return this.googleDriveService.resolverLinkDireto(file.googleDriveFileId);
   }
 }
