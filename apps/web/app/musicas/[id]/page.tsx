@@ -6,7 +6,7 @@ import { apiFetch } from '../../../lib/api';
 import { Header } from '../../../components/Header';
 import { BottomNav } from '../../../components/BottomNav';
 
-type FileItem = { id: string; name: string; type: string };
+type FileItem = { id: string; name: string; type: string; size?: number | null };
 type SongDetail = {
   id: string;
   title: string;
@@ -16,11 +16,32 @@ type SongDetail = {
   files: FileItem[];
 };
 
+// Não dá pra mostrar porcentagem de download aqui, e o motivo é o mesmo que
+// mantém o site no ar: o arquivo vem direto do Google, não do nosso servidor.
+// O navegador é quem baixa, e o JavaScript da página não tem como ler o
+// progresso de uma resposta de outro domínio — o Google não libera isso (CORS).
+//
+// Para haver porcentagem, os bytes teriam que passar por dentro da nossa API,
+// que foi exatamente o que estourou a cota de banda e derrubou o serviço em
+// 20/08/2026. Um multitrack de 800MB por download acabava com o mês.
+//
+// O que dá pra fazer, e é o que está aqui: dizer o tamanho antes de começar,
+// avisar quando o download efetivamente saiu, e mandar o músico olhar a barra
+// do próprio navegador, que mostra progresso de verdade.
+function formatarTamanho(bytes?: number | null): string | null {
+  if (!bytes || bytes <= 0) return null;
+  const mb = bytes / (1024 * 1024);
+  if (mb < 1024) return `${mb.toFixed(mb < 10 ? 1 : 0)} MB`;
+  return `${(mb / 1024).toFixed(1)} GB`;
+}
+
 export default function SongPage() {
   const params = useParams<{ id: string }>();
   const [song, setSong] = useState<SongDetail | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'not-found' | 'error'>('loading');
-  const [downloadState, setDownloadState] = useState<Record<string, 'idle' | 'loading' | 'error'>>({});
+  const [downloadState, setDownloadState] = useState<
+    Record<string, 'idle' | 'loading' | 'iniciado' | 'error'>
+  >({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,7 +88,13 @@ export default function SongPage() {
       // não serviria — o atributo download é ignorado em link cross-origin.
       window.location.href = url;
 
-      setDownloadState((prev) => ({ ...prev, [fileId]: 'idle' }));
+      // Marca como iniciado em vez de voltar pra 'idle': o botão voltando na
+      // hora pra "Download" dava a impressão de que nada tinha acontecido,
+      // porque o download acontece na barra do navegador e não na página.
+      setDownloadState((prev) => ({ ...prev, [fileId]: 'iniciado' }));
+      setTimeout(() => {
+        setDownloadState((prev) => (prev[fileId] === 'iniciado' ? { ...prev, [fileId]: 'idle' } : prev));
+      }, 8000);
     } catch (err: any) {
       setErrorMsg(err.message ?? 'Erro ao baixar arquivo');
       setDownloadState((prev) => ({ ...prev, [fileId]: 'error' }));
@@ -139,19 +166,28 @@ export default function SongPage() {
                 key={file.id}
                 className="rounded-xl2 bg-smix-surface border border-smix-border px-4 py-3"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm">{file.name}</p>
-                    <p className="text-smix-muted text-xs">{file.type}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm truncate">{file.name}</p>
+                    <p className="text-smix-muted text-xs">
+                      {file.type}
+                      {formatarTamanho(file.size) && ` · ${formatarTamanho(file.size)}`}
+                    </p>
                   </div>
                   <button
                     onClick={() => handleDownload(file.id)}
                     disabled={state === 'loading'}
-                    className="rounded-xl2 bg-smix-primary px-4 py-2 text-xs font-medium hover:opacity-90 transition disabled:opacity-50 min-w-[84px]"
+                    className="shrink-0 rounded-xl2 bg-smix-primary px-4 py-2 text-xs font-medium hover:opacity-90 transition disabled:opacity-50 min-w-[96px]"
                   >
-                    {state === 'loading' ? 'Abrindo...' : 'Download'}
+                    {state === 'loading' ? 'Preparando...' : state === 'iniciado' ? 'Baixando ✓' : 'Download'}
                   </button>
                 </div>
+
+                {state === 'iniciado' && (
+                  <p className="text-smix-muted text-xs mt-2">
+                    Download começou. O progresso aparece na barra de downloads do navegador.
+                  </p>
+                )}
               </div>
             );
           })}

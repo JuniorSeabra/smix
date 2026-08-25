@@ -54,13 +54,17 @@ export default function ChatPage() {
       <Header />
       <BottomNav />
 
-      <div className="px-5 mt-4 flex-1 flex flex-col max-w-sm w-full mx-auto">
+      {/* max-w-sm no celular (o desenho original), mas solto a partir de md: a
+          coluna travada em 384px numa tela de PC deixava a caixa de texto e o
+          botão Enviar espremidos num canto, desproporcionais ao resto da página.
+          A tela do admin nunca teve esse problema porque o painel dela cresce. */}
+      <div className="px-5 mt-4 flex-1 flex flex-col w-full max-w-sm md:max-w-2xl mx-auto">
         <h1 className="text-xl font-bold mb-1">Suporte</h1>
         <p className="text-smix-muted text-xs mb-4">
           As mensagens ficam guardadas por 48 horas e depois são apagadas automaticamente.
         </p>
 
-        <div className="flex-1 flex flex-col gap-2 overflow-y-auto min-h-[300px]">
+        <div className="flex-1 flex flex-col gap-2 overflow-y-auto min-h-[300px] md:min-h-[420px]">
           {messages.length === 0 && (
             <p className="text-smix-muted text-sm text-center mt-8">
               Envie uma mensagem para o administrador tirar suas dúvidas.
@@ -81,18 +85,21 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        <form onSubmit={handleSend} className="flex gap-2 mt-4">
+        {/* min-w-0 no input e shrink-0 no botão: item flex tem largura mínima
+            igual ao conteúdo por padrão, então uma mensagem longa empurrava o
+            botão pra fora da tela no celular em vez de o campo rolar por dentro. */}
+        <form onSubmit={handleSend} className="flex items-stretch gap-2 mt-4">
           <input
             type="text"
             placeholder="Escreva sua mensagem..."
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="flex-1 rounded-xl2 bg-smix-surface border border-smix-border px-4 py-3 text-sm outline-none focus:border-smix-primary transition"
+            className="flex-1 min-w-0 rounded-xl2 bg-smix-surface border border-smix-border px-4 py-3 text-sm outline-none focus:border-smix-primary transition"
           />
           <button
             type="submit"
             disabled={sending || !text.trim()}
-            className="rounded-xl2 bg-smix-primary px-5 text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
+            className="shrink-0 whitespace-nowrap rounded-xl2 bg-smix-primary px-5 py-3 text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
           >
             Enviar
           </button>
