@@ -25,7 +25,12 @@ export function BottomNav() {
       .catch(() => setIsAdmin(false));
   }, []);
 
-  const items = isAdmin ? [...ITEMS, ADMIN_ITEM] : ITEMS;
+  // Pro admin, "Chat" aponta direto pra fila de atendimento. A página /chat
+  // também redireciona sozinha (ver app/chat/page.tsx), mas trocar o link aqui
+  // evita o salto e a piscada da tela de suporte no caminho.
+  const items = isAdmin
+    ? [...ITEMS.map((i) => (i.href === '/chat' ? { ...i, href: '/admin/chat' } : i)), ADMIN_ITEM]
+    : ITEMS;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-smix-surface/90 backdrop-blur border-t border-smix-border flex justify-around py-2 z-20">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiFetch } from '../../lib/api';
 import { Header } from '../../components/Header';
 import { BottomNav } from '../../components/BottomNav';
@@ -8,9 +9,13 @@ import { BottomNav } from '../../components/BottomNav';
 type Message = { id: string; content: string; senderId: string; createdAt: string; isMine: boolean };
 
 export default function ChatPage() {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  // 'checando' até sabermos o cargo. Ver o efeito abaixo — o polling não pode
+  // começar antes disso.
+  const [modo, setModo] = useState<'checando' | 'usuario'>('checando');
   const bottomRef = useRef<HTMLDivElement>(null);
 
   async function loadMessages() {
@@ -23,11 +28,43 @@ export default function ChatPage() {
     }
   }
 
+  // Admin que entra em "Chat" vai direto pra fila de atendimento, que é o que
+  // ele realmente quer ver — a tela de suporte do usuário não serve pra ele.
+  //
+  // A checagem precisa vir ANTES de qualquer chamada a /chat/conversation: esse
+  // endpoint cria a conversa de suporte do usuário no primeiro acesso, então um
+  // admin abrindo esta página apareceria como cliente na própria lista de
+  // atendimentos, com uma conversa vazia que ele teria que apagar na mão.
+  //
+  // Isto é conveniência de navegação, não permissão: quem decide o que o admin
+  // pode ver continua sendo o RolesGuard no backend. Um usuário comum que chegue
+  // em /admin/chat por conta própria leva 403 da API do mesmo jeito.
   useEffect(() => {
+    let ativo = true;
+    apiFetch('/users/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((perfil) => {
+        if (!ativo) return;
+        if (perfil?.role === 'ADMIN') {
+          router.replace('/admin/chat');
+          return;
+        }
+        setModo('usuario');
+      })
+      .catch(() => {
+        if (ativo) setModo('usuario');
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (modo !== 'usuario') return;
     loadMessages();
     const interval = setInterval(loadMessages, 5000); // polling simples até termos WebSocket
     return () => clearInterval(interval);
-  }, []);
+  }, [modo]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -54,10 +91,18 @@ export default function ChatPage() {
       <Header />
       <BottomNav />
 
+      {/* Sem isto a tela de suporte piscava por um instante antes de o admin ser
+          levado pra fila de atendimento. */}
+      {modo === 'checando' && (
+        <div className="px-5 mt-10 text-center">
+          <p className="text-smix-muted text-sm">Carregando...</p>
+        </div>
+      )}
       {/* max-w-sm no celular (o desenho original), mas solto a partir de md: a
           coluna travada em 384px numa tela de PC deixava a caixa de texto e o
           botão Enviar espremidos num canto, desproporcionais ao resto da página.
           A tela do admin nunca teve esse problema porque o painel dela cresce. */}
+      {modo === 'usuario' && (
       <div className="px-5 mt-4 flex-1 flex flex-col w-full max-w-sm md:max-w-2xl mx-auto">
         <h1 className="text-xl font-bold mb-1">Suporte</h1>
         <p className="text-smix-muted text-xs mb-4">
@@ -105,6 +150,7 @@ export default function ChatPage() {
           </button>
         </form>
       </div>
+      )}
     </main>
   );
 }
