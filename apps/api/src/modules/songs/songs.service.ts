@@ -85,6 +85,61 @@ export class SongsService {
     });
   }
 
+  // Pública (Home) — só o agregado (título/artista/contagem), nunca dado de
+  // usuário. Parte de DownloadLog.groupBy por fileId (poucas linhas, uma por
+  // arquivo distinto já baixado) em vez de carregar cada download — soma por
+  // música porque uma música pode ter mais de um arquivo (stems).
+  async getTrending(limit = 3) {
+    const topFiles = await this.prisma.downloadLog.groupBy({
+      by: ['fileId'],
+      _count: { fileId: true },
+    });
+    if (topFiles.length === 0) return [];
+
+    const files = await this.prisma.file.findMany({
+      where: { id: { in: topFiles.map((f) => f.fileId) }, status: 'ACTIVE' },
+      select: {
+        id: true,
+        song: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            artist: { select: { id: true, name: true, photoUrl: true, status: true } },
+          },
+        },
+      },
+    });
+
+    const bySong = new Map<
+      string,
+      { title: string; artistId: string; artistName: string; artistPhotoUrl: string | null; downloads: number }
+    >();
+    for (const row of topFiles) {
+      const file = files.find((f) => f.id === row.fileId);
+      const song = file?.song;
+      if (!song || song.status !== 'ACTIVE' || song.artist.status !== 'ACTIVE') continue;
+
+      const existing = bySong.get(song.id);
+      if (existing) {
+        existing.downloads += row._count.fileId;
+      } else {
+        bySong.set(song.id, {
+          title: song.title,
+          artistId: song.artist.id,
+          artistName: song.artist.name,
+          artistPhotoUrl: song.artist.photoUrl,
+          downloads: row._count.fileId,
+        });
+      }
+    }
+
+    return Array.from(bySong.entries())
+      .map(([songId, data]) => ({ songId, ...data }))
+      .sort((a, b) => b.downloads - a.downloads)
+      .slice(0, limit);
+  }
+
   create(data: { title: string; artistId: string; description?: string; coverUrl?: string; category?: string }) {
     return this.prisma.song.create({ data });
   }

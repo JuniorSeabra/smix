@@ -34,7 +34,8 @@ type Stats = {
   };
   downloadsPerDay: { date: string; count: number }[];
   auditPerDay: { date: string; count: number }[];
-  topDownloads: { fileId: string; title: string; artist: string; count: number }[];
+  topDownloads: { fileId: string; title: string; artist: string; count: number; percentage: number }[];
+  topUsers: { userId: string; name: string; email: string; count: number; percentage: number }[];
 };
 
 // "2026-08-19" -> "19/08". Corta a string em vez de usar new Date(), que
@@ -148,13 +149,27 @@ export default function AdminAtividadePage() {
               <HorizontalBars
                 unit="downloads"
                 data={stats.topDownloads.map((d) => ({
-                  label: d.artist ? `${d.title} — ${d.artist}` : d.title,
+                  label: `${d.artist ? `${d.title} — ${d.artist}` : d.title} (${d.percentage}%)`,
                   value: d.count,
-                  hint: d.title,
+                  hint: `${d.title} · ${d.percentage}% de todos os downloads`,
                 }))}
               />
             </ChartCard>
           </div>
+
+          <ChartCard
+            title="Quem mais baixa"
+            subtitle="Top 5 usuários por quantidade de downloads, de todo o período"
+          >
+            <HorizontalBars
+              unit="downloads"
+              data={stats.topUsers.map((u) => ({
+                label: `${u.name} (${u.percentage}%)`,
+                value: u.count,
+                hint: `${u.email} · ${u.percentage}% de todos os downloads`,
+              }))}
+            />
+          </ChartCard>
         </div>
       )}
 

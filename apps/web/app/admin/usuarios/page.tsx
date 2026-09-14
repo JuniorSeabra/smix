@@ -5,7 +5,26 @@ import { apiFetch } from '../../../lib/api';
 import { AdminNav } from '../../../components/AdminNav';
 import { AdminBottomNav } from '../../../components/AdminBottomNav';
 
-type UserRow = { id: string; name: string; email: string; role: 'USER' | 'ADMIN'; status: 'ACTIVE' | 'INACTIVE' };
+type UserRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: 'USER' | 'ADMIN';
+  status: 'ACTIVE' | 'INACTIVE';
+  accessExpiresAt: string | null;
+};
+
+// Date input só aceita "YYYY-MM-DDTHH:mm" — sem segundos/timezone.
+function toDatetimeLocalValue(iso: string | null) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function isExpired(iso: string | null) {
+  return !!iso && new Date(iso).getTime() <= Date.now();
+}
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -17,6 +36,8 @@ export default function AdminUsersPage() {
   const [editPassword, setEditPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [expiryDrafts, setExpiryDrafts] = useState<Record<string, string>>({});
+  const [savingExpiryId, setSavingExpiryId] = useState<string | null>(null);
 
   // Cadastro de usuário pelo painel. Com o cadastro público fechado, é por aqui
   // que alguém entra na plataforma.
@@ -91,6 +112,22 @@ export default function AdminUsersPage() {
     const newStatus = user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     await apiFetch(`/admin/users/${user.id}`, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
     load();
+  }
+
+  async function saveExpiry(userId: string) {
+    const value = expiryDrafts[userId];
+    setSavingExpiryId(userId);
+    try {
+      await apiFetch(`/admin/users/${userId}`, {
+        method: 'PATCH',
+        // input vazio -> limpa a data (acesso sem prazo de novo). Com valor,
+        // manda a hora local escolhida como ISO — o backend guarda em UTC.
+        body: JSON.stringify({ accessExpiresAt: value ? new Date(value).toISOString() : null }),
+      });
+      load();
+    } finally {
+      setSavingExpiryId(null);
+    }
   }
 
   async function handleDelete(user: UserRow) {
@@ -321,6 +358,42 @@ export default function AdminUsersPage() {
                     {deletingId === user.id ? 'Excluindo...' : 'Excluir'}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {editingId !== user.id && (
+              <div className="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-smix-border">
+                <span className="text-smix-muted text-xs whitespace-nowrap">Acesso expira em</span>
+                <input
+                  type="datetime-local"
+                  value={expiryDrafts[user.id] ?? toDatetimeLocalValue(user.accessExpiresAt)}
+                  onChange={(e) => setExpiryDrafts((prev) => ({ ...prev, [user.id]: e.target.value }))}
+                  className="rounded-lg bg-smix-bg border border-smix-border px-2 py-1.5 text-xs outline-none focus:border-smix-accent"
+                />
+                <button
+                  onClick={() => saveExpiry(user.id)}
+                  disabled={savingExpiryId === user.id}
+                  className="text-xs text-smix-accent hover:underline disabled:opacity-50"
+                >
+                  {savingExpiryId === user.id ? 'Salvando...' : 'Salvar'}
+                </button>
+                {user.accessExpiresAt && (
+                  <button
+                    onClick={() => {
+                      setExpiryDrafts((prev) => ({ ...prev, [user.id]: '' }));
+                      saveExpiry(user.id);
+                    }}
+                    className="text-xs text-smix-muted hover:underline"
+                  >
+                    Remover prazo
+                  </button>
+                )}
+                {user.accessExpiresAt && (
+                  <span className={`text-xs ${isExpired(user.accessExpiresAt) ? 'text-red-400' : 'text-smix-muted'}`}>
+                    {isExpired(user.accessExpiresAt) ? 'Expirado em ' : 'Expira em '}
+                    {new Date(user.accessExpiresAt).toLocaleString('pt-BR')}
+                  </span>
+                )}
               </div>
             )}
           </div>

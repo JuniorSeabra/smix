@@ -98,7 +98,7 @@ export class AdminService {
   listUsers(search?: string) {
     return this.prisma.user.findMany({
       where: search ? { OR: [{ name: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }] } : undefined,
-      select: { id: true, name: true, email: true, role: true, status: true, createdAt: true },
+      select: { id: true, name: true, email: true, role: true, status: true, accessExpiresAt: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
@@ -112,7 +112,14 @@ export class AdminService {
   // futuros do modelo) entre de carona caso o DTO seja afrouxado um dia.
   async updateUser(
     id: string,
-    data: { role?: 'USER' | 'ADMIN'; status?: 'ACTIVE' | 'INACTIVE'; name?: string; email?: string; newPassword?: string },
+    data: {
+      role?: 'USER' | 'ADMIN';
+      status?: 'ACTIVE' | 'INACTIVE';
+      name?: string;
+      email?: string;
+      newPassword?: string;
+      accessExpiresAt?: string | null;
+    },
   ) {
     const updateData: Prisma.UserUpdateInput = {};
     if (data.role !== undefined) updateData.role = data.role;
@@ -122,11 +129,15 @@ export class AdminService {
     if (data.newPassword) {
       updateData.passwordHash = await bcrypt.hash(data.newPassword, 12);
     }
+    // null explícito limpa a data (libera de novo sem prazo); string define.
+    if (data.accessExpiresAt !== undefined) {
+      updateData.accessExpiresAt = data.accessExpiresAt === null ? null : new Date(data.accessExpiresAt);
+    }
 
     return this.prisma.user.update({
       where: { id },
       // Sem passwordHash na resposta: este retorno vira o JSON da API.
-      select: { id: true, name: true, email: true, role: true, status: true, createdAt: true },
+      select: { id: true, name: true, email: true, role: true, status: true, accessExpiresAt: true, createdAt: true },
       data: updateData,
     });
   }
@@ -205,7 +216,7 @@ export class AdminService {
     since.setHours(0, 0, 0, 0);
     since.setDate(since.getDate() - (days - 1));
 
-    const [dashboard, downloadsByDay, auditByDay, topFiles] = await Promise.all([
+    const [dashboard, downloadsByDay, auditByDay, topFiles, topUsers] = await Promise.all([
       this.getDashboard(),
       this.prisma.$queryRaw<{ day: Date; count: bigint }[]>`
         SELECT date_trunc('day', "createdAt") AS day, COUNT(*) AS count
@@ -227,6 +238,12 @@ export class AdminService {
         orderBy: { _count: { fileId: 'desc' } },
         take: 5,
       }),
+      this.prisma.downloadLog.groupBy({
+        by: ['userId'],
+        _count: { userId: true },
+        orderBy: { _count: { userId: 'desc' } },
+        take: 5,
+      }),
     ]);
 
     const files = await this.prisma.file.findMany({
@@ -236,6 +253,11 @@ export class AdminService {
         name: true,
         song: { select: { title: true, artist: { select: { name: true } } } },
       },
+    });
+
+    const rankedUsers = await this.prisma.user.findMany({
+      where: { id: { in: topUsers.map((u) => u.userId) } },
+      select: { id: true, name: true, email: true },
     });
 
     // Preenche os dias sem registro com zero — senão o gráfico "pula" datas e
@@ -252,6 +274,12 @@ export class AdminService {
 
     const { recentPayments, ...totals } = dashboard;
 
+    // Percentual sobre o total de downloads de todo o período (não só os 14
+    // dias do gráfico) — é o número que dá pra dizer "esse arquivo/usuário
+    // responde por X% de tudo que já foi baixado".
+    const percentOf = (count: number) =>
+      totals.totalDownloads > 0 ? Math.round((count / totals.totalDownloads) * 1000) / 10 : 0;
+
     return {
       totals,
       downloadsPerDay: toSeries(downloadsByDay),
@@ -263,6 +291,17 @@ export class AdminService {
           title: file?.song?.title ?? file?.name ?? 'Arquivo removido',
           artist: file?.song?.artist?.name ?? '',
           count: row._count.fileId,
+          percentage: percentOf(row._count.fileId),
+        };
+      }),
+      topUsers: topUsers.map((row) => {
+        const user = rankedUsers.find((u) => u.id === row.userId);
+        return {
+          userId: row.userId,
+          name: user?.name ?? 'Usuário removido',
+          email: user?.email ?? '',
+          count: row._count.userId,
+          percentage: percentOf(row._count.userId),
         };
       }),
     };

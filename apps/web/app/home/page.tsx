@@ -9,6 +9,14 @@ import { InstrumentBackdrop } from '../../components/InstrumentBackdrop';
 
 type Artist = { id: string; name: string; photoUrl: string | null };
 type SongResult = { id: string; title: string; artist: { name: string } };
+type TrendingSong = {
+  songId: string;
+  title: string;
+  artistId: string;
+  artistName: string;
+  artistPhotoUrl: string | null;
+  downloads: number;
+};
 
 function initials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
@@ -26,6 +34,7 @@ export default function HomePage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SongResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [trending, setTrending] = useState<TrendingSong[]>([]);
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ dragging: boolean; startX: number; startScrollLeft: number; moved: boolean }>({
@@ -75,6 +84,14 @@ export default function HomePage() {
       .then((res) => res.json())
       .then((data) => setArtists(Array.isArray(data) ? data : []))
       .catch(() => setArtists([]));
+
+    // Rota pública — só agregado (título/artista/contagem), sem dado de
+    // usuário nenhum. Some do jeito que fica quando ninguém baixou nada ainda
+    // (getTrending() já filtra e devolve []), em vez de mostrar seção vazia.
+    apiFetch('/songs/trending')
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setTrending)
+      .catch(() => setTrending([]));
   }, []);
 
   useEffect(() => {
@@ -203,6 +220,40 @@ export default function HomePage() {
             </button>
           </div>
           )}
+        </section>
+      )}
+
+      {!query.trim() && trending.length > 0 && (
+        <section className="mt-10 mx-5">
+          <h2 className="text-sm text-smix-muted mb-3 flex items-center gap-1.5">
+            <span aria-hidden>🔥</span> Em alta
+          </h2>
+          <div className="flex flex-col gap-2">
+            {trending.map((song, i) => (
+              <a
+                key={song.songId}
+                href={`/musicas/${song.songId}`}
+                className="rounded-xl2 bg-smix-surface border border-smix-border px-4 py-3 flex items-center gap-3 hover:border-smix-accent transition"
+              >
+                <span className="text-lg font-bold text-smix-muted w-6 text-center flex-shrink-0">{i + 1}</span>
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-smix-primary to-smix-accent flex items-center justify-center flex-shrink-0">
+                  {song.artistPhotoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={song.artistPhotoUrl} alt={song.artistName} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-white/90 text-xs font-semibold">{initials(song.artistName)}</span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate">{song.title}</p>
+                  <p className="text-smix-muted text-xs truncate">{song.artistName}</p>
+                </div>
+                <span className="text-smix-accent text-xs font-medium flex-shrink-0 whitespace-nowrap">
+                  {song.downloads} download{song.downloads !== 1 ? 's' : ''}
+                </span>
+              </a>
+            ))}
+          </div>
         </section>
       )}
 

@@ -15,6 +15,13 @@ export class SongsController {
     return this.songsService.search(typeof q === 'string' ? q.slice(0, 100) : '');
   }
 
+  // Pública, pra mostrar "mais baixado" na Home — precisa vir antes de
+  // GET :id, senão o Nest casa "trending" como se fosse um id.
+  @Get('trending')
+  trending() {
+    return this.songsService.getTrending();
+  }
+
   // ParseUUIDPipe rejeita id malformado antes de chegar ao banco. O que sai daqui
   // é filtrado em SongsService.findOne — googleDriveFileId não vai no payload.
   @Get(':id')

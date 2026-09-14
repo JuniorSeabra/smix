@@ -46,6 +46,11 @@ model User {
   photoUrl      String?
   role          Role      @default(USER)
   status        ContentStatus @default(ACTIVE)
+  // Data limite de acesso definida pelo admin (independente de assinatura/
+  // pagamento — é um controle manual à parte). Depois dessa data e hora, o
+  // login para de funcionar e qualquer token ainda válido é recusado na
+  // próxima requisição (checado em JwtStrategy.validate, igual ao status).
+  accessExpiresAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

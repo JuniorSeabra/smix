@@ -61,6 +61,16 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
+    // Barra aqui também, não só em JwtStrategy — sem isso o login "funcionava"
+    // e devolvia token, e só a próxima requisição autenticada é que caía com
+    // 401 sem explicação nenhuma. Mensagem clara já na hora de logar.
+    if (user.status !== 'ACTIVE') {
+      throw new ForbiddenException('Conta desativada. Fale com o administrador.');
+    }
+    if (user.accessExpiresAt && user.accessExpiresAt.getTime() <= Date.now()) {
+      throw new ForbiddenException('Seu acesso expirou. Fale com o administrador.');
+    }
+
     return this.buildTokenResponse(user.id, user.email);
   }
 

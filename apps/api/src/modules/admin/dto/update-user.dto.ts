@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsISO8601, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -26,4 +26,11 @@ export class UpdateUserDto {
   @IsString()
   @MinLength(8)
   newPassword?: string;
+
+  // string ISO pra definir, ou null pra limpar (liberar de novo sem data
+  // limite). @IsOptional() do class-validator pula a validação tanto pra
+  // undefined (campo não enviado) quanto pra null (envio explícito de "sem data").
+  @IsOptional()
+  @IsISO8601({}, { message: 'Data de expiração inválida' })
+  accessExpiresAt?: string | null;
 }
