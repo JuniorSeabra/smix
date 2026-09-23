@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">S-MIX</string>
+    <string name="title_activity_main">S-MIX</string>
+    <string name="package_name">com.smix.app</string>
+    <string name="custom_url_scheme">com.smix.app</string>
+</resources>

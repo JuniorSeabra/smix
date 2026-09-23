@@ -1,0 +1,18 @@
+{
+  "name": "smix-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Embrulho Android (Capacitor) do S-MIX — carrega o site já publicado, sem duplicar código do apps/web.",
+  "scripts": {
+    "android": "npx cap open android"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "sharp": "^0.35.4"
+  }
+}

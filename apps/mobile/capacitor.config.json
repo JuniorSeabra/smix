@@ -1,0 +1,9 @@
+{
+  "appId": "com.smix.app",
+  "appName": "S-MIX",
+  "webDir": "www",
+  "server": {
+    "url": "https://smix.vercel.app",
+    "androidScheme": "https"
+  }
+}
