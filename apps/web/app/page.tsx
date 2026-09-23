@@ -101,6 +101,17 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-10 relative overflow-hidden">
       <BandSilhouette />
+
+      {/* Link direto pro APK do Android — fica sempre visível, mesmo sem
+          login, pra quem só quer instalar o app no celular. */}
+      <a
+        href="/S-MIX.apk"
+        download
+        className="fixed bottom-4 left-4 z-10 flex items-center gap-1.5 text-xs text-smix-muted hover:text-smix-accent transition"
+      >
+        <span aria-hidden>📱</span> Baixar App
+      </a>
+
       <div className="w-full max-w-sm flex flex-col items-center gap-8">
         <div className="flex flex-col items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
