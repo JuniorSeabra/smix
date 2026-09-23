@@ -103,22 +103,37 @@ export default function LoginPage() {
       <BandSilhouette />
 
       {/* Link direto pro APK do Android — fica sempre visível, mesmo sem
-          login, pra quem só quer instalar o app no celular. */}
+          login, pra quem só quer instalar o app no celular. Foto de bateria
+          bem sutil atrás, só decorativa (mesma foto usada na Home). */}
       <a
         href="/S-MIX.apk"
         download
-        className="fixed bottom-4 left-4 z-10 flex items-center gap-1.5 text-xs text-smix-muted hover:text-smix-accent transition"
+        className="fixed bottom-4 left-4 z-10 flex items-center gap-2 text-xs text-smix-muted hover:text-smix-accent transition rounded-lg overflow-hidden"
       >
-        <span aria-hidden>📱</span> Baixar App
+        <span
+          className="absolute inset-0 -m-2 bg-cover bg-center opacity-10"
+          style={{ backgroundImage: "url(https://images.unsplash.com/photo-1589200675167-86ea14c93292?auto=format&fit=crop&w=200&q=60)" }}
+          aria-hidden
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="" className="relative w-5 h-5 rounded-full" />
+        <span className="relative">Baixar App</span>
       </a>
 
       <div className="w-full max-w-sm flex flex-col items-center gap-8">
-        <div className="flex flex-col items-center gap-2">
+        <div className="relative flex flex-col items-center gap-2">
+          {/* Bateria acústica bem sutil atrás da logo — só decoração, mesma
+              foto usada na Home (já licenciada pra uso comercial). */}
+          <div
+            className="absolute -inset-x-10 -inset-y-6 -z-10 bg-cover bg-center opacity-[0.12] blur-[1px] rounded-full"
+            style={{ backgroundImage: "url(https://images.unsplash.com/photo-1589200675167-86ea14c93292?auto=format&fit=crop&w=600&q=70)" }}
+            aria-hidden
+          />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.png"
             alt="S-MIX"
-            className="w-28 h-28 rounded-full shadow-[0_0_32px_rgba(109,94,245,0.45)]"
+            className="w-40 h-40 rounded-full shadow-[0_0_40px_rgba(109,94,245,0.5)]"
           />
           <span className="text-3xl font-bold tracking-tight bg-gradient-to-r from-smix-primary to-smix-accent bg-clip-text text-transparent">
             S-MIX
