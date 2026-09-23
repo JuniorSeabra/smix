@@ -122,13 +122,19 @@ export default function LoginPage() {
 
       <div className="w-full max-w-sm flex flex-col items-center gap-8">
         <div className="relative flex flex-col items-center gap-2">
-          {/* Bateria acústica bem sutil atrás da logo — só decoração, mesma
-              foto usada na Home (já licenciada pra uso comercial). */}
+          {/* Bateria acústica atrás da logo — mesma foto usada na Home (já
+              licenciada pra uso comercial), com véu escuro só pra manter a
+              logo legível por cima. */}
           <div
-            className="absolute -inset-x-10 -inset-y-6 -z-10 bg-cover bg-center opacity-[0.12] blur-[1px] rounded-full"
-            style={{ backgroundImage: "url(https://images.unsplash.com/photo-1589200675167-86ea14c93292?auto=format&fit=crop&w=600&q=70)" }}
+            className="absolute -inset-x-14 -inset-y-10 -z-10 bg-cover bg-center rounded-full overflow-hidden"
             aria-hidden
-          />
+          >
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: "url(https://images.unsplash.com/photo-1589200675167-86ea14c93292?auto=format&fit=crop&w=600&q=80)" }}
+            />
+            <div className="absolute inset-0 bg-smix-bg/55" />
+          </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.png"
