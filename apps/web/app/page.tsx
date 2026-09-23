@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { BandSilhouette } from '../components/BandSilhouette';
-import { TabletMultitrackIcon } from '../components/TabletMultitrackIcon';
 
 // Etapas reais do login, na ordem em que acontecem. A porcentagem mostrada no
 // botão é a da última etapa efetivamente concluída — não é um contador que
@@ -103,13 +102,16 @@ export default function LoginPage() {
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-10 relative overflow-hidden">
       <BandSilhouette />
       <div className="w-full max-w-sm flex flex-col items-center gap-8">
-        <div className="flex flex-col items-center gap-1">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl font-bold tracking-tight bg-gradient-to-r from-smix-primary to-smix-accent bg-clip-text text-transparent">
-              S-MIX
-            </span>
-            <TabletMultitrackIcon className="w-16 h-auto drop-shadow-[0_0_18px_rgba(56,189,248,0.35)]" />
-          </div>
+        <div className="flex flex-col items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="S-MIX"
+            className="w-28 h-28 rounded-full shadow-[0_0_32px_rgba(109,94,245,0.45)]"
+          />
+          <span className="text-3xl font-bold tracking-tight bg-gradient-to-r from-smix-primary to-smix-accent bg-clip-text text-transparent">
+            S-MIX
+          </span>
           <p className="text-smix-muted text-sm text-center mt-1">
             MultiTracks para músicos e equipes de louvor
           </p>
